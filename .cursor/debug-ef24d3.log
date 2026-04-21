@@ -1,0 +1,2 @@
+{"sessionId":"ef24d3","location":"bootstrap/route.ts:POST","message":"bootstrap licenseKey meta","data":{"rawLen":264,"trimLen":264,"dotCount":2,"partCount":3,"hasCRLF":false},"timestamp":1776808988253,"hypothesisId":"H3-H4","runId":"post-fix"}
+{"sessionId":"ef24d3","location":"verify.ts:verifyLicense","message":"license format probe","data":{"partCount":3,"dotCount":2,"segLens":[36,140,86],"hasCRLF":false,"trimDiff":0},"timestamp":1776808988258,"hypothesisId":"H1-H2","runId":"post-fix"}
