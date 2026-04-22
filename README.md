@@ -1,59 +1,52 @@
-# ZeroCool Console
+# ZeroCool console (monorepo)
 
-Source-available bookkeeping cockpit (MVP scaffold per `PLAN.md`). **Not open source** — see `LICENSE`.
+Bun workspace containing the **Next.js console** app. QuickBooks Online is integrated **directly** via Intuit’s REST API (OAuth refresh token stored per client).
+
+The **QuickBooks MCP server** is maintained **outside** this repository for Cursor IDE use only: build `dist/index.js` in that project and point Cursor’s MCP settings at it with your sandbox Intuit credentials when you want tool discovery while implementing new endpoints.
+
+## Layout
+
+| Path | Package | Role |
+|------|---------|------|
+| `apps/console` | `zerocool-console` | Next.js 16 app (UI, tRPC, auth, QBO HTTP client) |
+
+## Cursor MCP (optional, local dev)
+
+1. Clone or create a repo that contains the QBO MCP server (e.g. fork or copy from [intuit/quickbooks-online-mcp-server](https://github.com/intuit/quickbooks-online-mcp-server)), run `npm install` and `npm run build`, and note the absolute path to `dist/index.js`.
+2. In Cursor, add an MCP server entry, for example:
+   - **Command:** `node`
+   - **Args:** `["/absolute/path/to/qbo-mcp-server/dist/index.js"]`
+   - **Env:** `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_REFRESH_TOKEN`, `QUICKBOOKS_REALM_ID`, `QUICKBOOKS_ENVIRONMENT` (`sandbox` or `production`)
+
+The console app does **not** spawn this process; it only uses the same Intuit app credentials in `.env.local` for OAuth and API calls.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/) and Node.js (for `better-sqlite3` migrations via `tsx`)
-- Intuit Developer sandbox app (client id / secret)
-- Optional: [Intuit QuickBooks MCP server](https://github.com/intuit/quickbooks-online-mcp-server) built locally; set `MCP_QBO_SERVER_PATH`
-- Anthropic API key (for chat features when wired)
+- [Bun](https://bun.sh) 1.x
 
-## Quick start
+## Install & run (development)
 
-1. Copy `.env.example` to `.env.local` and fill values:
-   - `BETTER_AUTH_SECRET`: 32+ random bytes (hex or long string)
-   - `TOKEN_ENCRYPTION_KEY`: 64 hex chars (32 bytes) for AES-256-GCM token storage
-   - `PRESENT_DAY_LICENSE_PUBLIC_KEY`: base64url Ed25519 public key (use `bunx tsx scripts/gen-keys.ts`)
-2. Generate a dev license (requires private key locally, **never commit**):
-
-   ```bash
-   PRESENT_DAY_LICENSE_PRIVATE_KEY="<from gen-keys>" bunx tsx scripts/gen-license.ts "My Firm"
-   ```
-
-3. Create the SQLite DB and apply migrations:
-
-   ```bash
-   mkdir -p .data
-   bun run db:migrate
-   ```
-
-4. Run the app:
-
-   ```bash
-   bun dev
-   ```
-
-5. Sign up, then on **Activate organization** paste the license key from step 2.
-
-6. Connect QuickBooks: **Clients → Add client** (or `/admin/clients/new`) and complete Intuit OAuth.
-
-### CI / build without real secrets
+From the **repository root**:
 
 ```bash
-SKIP_ENV_VALIDATION=true bun run build
+bun install
+cp apps/console/.env.example apps/console/.env.local
+# edit apps/console/.env.local
+bun run dev
 ```
 
-## Scripts
+The app serves at `http://localhost:3000` (see `apps/console` for app-specific docs).
 
-| Script | Purpose |
-|--------|---------|
-| `bun run db:migrate` | Apply Drizzle migrations (uses Node + `tsx` for `better-sqlite3`) |
-| `bun run db:generate` | `drizzle-kit generate` new migration |
-| `bunx tsx scripts/gen-keys.ts` | Print Ed25519 keypair for license signing (dev) |
-| `bunx tsx scripts/gen-license.ts` | Sign a license JWT-like blob |
-| `bunx tsx scripts/verify-mcp.ts` | Smoke-test MCP server spawn (requires QBO env vars) |
+## Production-style build
 
-## Architecture
+```bash
+bun install
+bun run build
+```
 
-See `docs/architecture.md` and `PLAN.md` for the full product spec. This repo implements the stack (Next.js 16, tRPC, Better Auth, Drizzle/SQLite, MCP client pool) with routes and stubs where noted in code comments.
+This builds the Next app only.
+
+## Deploying
+
+- **Vercel / similar:** set **Root Directory** to `apps/console` and configure env vars there. No MCP binary is required at runtime.
+- **Docker:** build from `apps/console` with Bun/Node as appropriate for your stack.
