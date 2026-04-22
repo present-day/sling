@@ -8,11 +8,17 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      SKIP_ENV_VALIDATION: "true"
+      NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - run: bun install
-      - run: bunx biome check .
-      - run: SKIP_ENV_VALIDATION=true bun run build
+      - name: Install (workspace)
+        run: bun install
+      - name: Lint
+        run: bun run lint
+      - name: Build Next app
+        run: bun run build:console
