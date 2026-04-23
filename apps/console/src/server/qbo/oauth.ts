@@ -55,6 +55,7 @@ export async function refreshQuickBooksAccessToken(
 	refreshToken: string,
 ): Promise<{
 	accessToken: string;
+	refreshToken?: string;
 }> {
 	const env = getEnv();
 	const body = new URLSearchParams({
@@ -80,9 +81,15 @@ export async function refreshQuickBooksAccessToken(
 		const text = await res.text();
 		throw new Error(`QuickBooks token refresh failed: ${res.status} ${text}`);
 	}
-	const json = (await res.json()) as { access_token?: string };
+	const json = (await res.json()) as {
+		access_token?: string;
+		refresh_token?: string;
+	};
 	if (!json.access_token) {
 		throw new Error("Missing access_token in refresh response");
 	}
-	return { accessToken: json.access_token };
+	return {
+		accessToken: json.access_token,
+		...(json.refresh_token ? { refreshToken: json.refresh_token } : {}),
+	};
 }

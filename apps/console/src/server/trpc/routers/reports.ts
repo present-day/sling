@@ -1,4 +1,7 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { parseProfitLossConfig } from "@/server/reports/profit-loss-config";
+import { loadProfitLossData } from "@/server/reports/profit-loss-data";
 import { orgProcedure, router } from "../init";
 
 export const reportsRouter = router({
@@ -13,9 +16,15 @@ export const reportsRouter = router({
 					slug: z.string(),
 					name: z.string(),
 					kind: z.enum(["profit_loss", "balance_sheet", "cash_flow", "custom"]),
+					hasSourcePdf: z.boolean().optional(),
 				}),
 			)
-			.parse(rows);
+			.parse(
+				rows.map((r) => ({
+					...r,
+					hasSourcePdf: Boolean(r.sourcePdfStoragePath),
+				})),
+			);
 	}),
 	getBySlug: orgProcedure
 		.input(z.object({ slug: z.string() }))
@@ -27,6 +36,7 @@ export const reportsRouter = router({
 			if (!row) {
 				return null;
 			}
+			const { config: _raw, ...rest } = row;
 			return z
 				.object({
 					id: z.string(),
@@ -34,7 +44,43 @@ export const reportsRouter = router({
 					name: z.string(),
 					kind: z.enum(["profit_loss", "balance_sheet", "cash_flow", "custom"]),
 					config: z.unknown(),
+					sourcePdfFileName: z.string().nullable().optional(),
+					sourcePdfStoragePath: z.string().nullable().optional(),
 				})
-				.parse(row);
+				.parse({
+					...rest,
+					config: parseProfitLossConfig(row.config),
+				});
+		}),
+	/**
+	 * Live Profit & Loss from QuickBooks, merged with the org’s `profit-loss` template (or defaults).
+	 */
+	profitLoss: orgProcedure
+		.input(
+			z.object({
+				clientId: z.string(),
+				startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+				endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+				accountingMethod: z.enum(["Accrual", "Cash"]).optional(),
+				summarizeColumnBy: z
+					.enum(["Total", "Month", "Week", "Days", "Quarter", "Year"])
+					.optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			try {
+				return await loadProfitLossData({
+					orgId: ctx.orgId,
+					clientId: input.clientId,
+					startDate: input.startDate,
+					endDate: input.endDate,
+					accountingMethod: input.accountingMethod,
+					summarizeColumnBy: input.summarizeColumnBy,
+				});
+			} catch (e) {
+				const message =
+					e instanceof Error ? e.message : "QuickBooks P&L request failed";
+				throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+			}
 		}),
 });

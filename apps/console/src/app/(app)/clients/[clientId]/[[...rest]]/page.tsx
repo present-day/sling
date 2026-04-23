@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ProfitLossReport } from "@/components/reports/profit-loss-report";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ENTITY_SEARCH } from "@/lib/entity-search";
@@ -97,6 +98,15 @@ export default function ClientWorkspacePage() {
 						))}
 					</div>
 				)}
+			</div>
+		);
+	}
+
+	if (segment === "reports" && sub[0] === "profit-loss") {
+		return (
+			<div className="space-y-4">
+				<h1 className="font-heading text-2xl font-semibold">Reports</h1>
+				<ProfitLossReport clientId={clientId} />
 			</div>
 		);
 	}

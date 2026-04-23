@@ -9,8 +9,7 @@ import {
 	extractQueryRows,
 	runQuickBooksQuery,
 } from "@/server/qbo/intuit-query";
-import { refreshQuickBooksAccessToken } from "@/server/qbo/oauth";
-import { decryptRefreshToken } from "@/server/qbo/tokens";
+import { getQuickBooksAccessTokenForClient } from "@/server/qbo/get-access-token";
 
 type ClientRow = typeof clients.$inferSelect;
 
@@ -26,8 +25,7 @@ export async function searchQboEntityList(
 	}
 
 	const q = textFilter?.trim();
-	const refresh = decryptRefreshToken(client.encryptedRefreshToken);
-	const { accessToken } = await refreshQuickBooksAccessToken(refresh);
+	const accessToken = await getQuickBooksAccessTokenForClient(client);
 
 	let sql: string;
 	if (entityStem === "accounts") {

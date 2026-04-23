@@ -1,6 +1,7 @@
 import "server-only";
 
-const MINOR_VERSION = "65";
+/** Shared with QuickBooks Reports API and SQL query API. */
+export const QBO_MINOR_VERSION = "65";
 
 export function quickBooksApiOrigin(
 	environment: "sandbox" | "production",
@@ -29,6 +30,24 @@ export function buildEntityListQuery(options: {
 	return `${base} maxresults ${limit}`;
 }
 
+export function throwIfQuickBooksFault(payload: unknown): void {
+	if (typeof payload !== "object" || payload === null) {
+		return;
+	}
+	const obj = payload as Record<string, unknown>;
+	if (!("Fault" in obj) || !obj.Fault) {
+		return;
+	}
+	const fault = obj.Fault as {
+		Error?: { Detail?: string; Message?: string }[];
+	};
+	const msg =
+		fault.Error?.[0]?.Detail ??
+		fault.Error?.[0]?.Message ??
+		JSON.stringify(obj.Fault);
+	throw new Error(`QuickBooks API: ${msg}`);
+}
+
 export function extractQueryRows(
 	payload: unknown,
 	entityResponseKey: string,
@@ -38,14 +57,7 @@ export function extractQueryRows(
 	}
 	const obj = payload as Record<string, unknown>;
 	if ("Fault" in obj && obj.Fault) {
-		const fault = obj.Fault as {
-			Error?: { Detail?: string; Message?: string }[];
-		};
-		const msg =
-			fault.Error?.[0]?.Detail ??
-			fault.Error?.[0]?.Message ??
-			JSON.stringify(obj.Fault);
-		throw new Error(`QuickBooks API: ${msg}`);
+		throwIfQuickBooksFault(payload);
 	}
 	const qr = obj.QueryResponse as Record<string, unknown> | undefined;
 	if (!qr) {
@@ -70,7 +82,7 @@ export async function runQuickBooksQuery(options: {
 	const origin = quickBooksApiOrigin(options.environment);
 	const url = new URL(`/v3/company/${options.realmId}/query`, origin);
 	url.searchParams.set("query", options.query);
-	url.searchParams.set("minorversion", MINOR_VERSION);
+	url.searchParams.set("minorversion", QBO_MINOR_VERSION);
 	const res = await fetch(url, {
 		headers: {
 			Authorization: `Bearer ${options.accessToken}`,
