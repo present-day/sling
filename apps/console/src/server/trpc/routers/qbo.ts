@@ -1,24 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { searchQboEntityList } from "@/server/qbo/entity-list-search";
+import { ensureClientInOrg } from "@/server/trpc/ensure-client-in-org";
 import { orgProcedure, router } from "../init";
-
-async function assertClientInOrg(
-	ctx: {
-		db: typeof import("@/server/db/client")["db"];
-		orgId: string;
-	},
-	clientId: string,
-) {
-	const row = await ctx.db.query.clients.findFirst({
-		where: (c, { eq: eqFn, and: andFn }) =>
-			andFn(eqFn(c.id, clientId), eqFn(c.orgId, ctx.orgId)),
-	});
-	if (!row) {
-		throw new TRPCError({ code: "NOT_FOUND", message: "Client not found" });
-	}
-	return row;
-}
 
 export const qboRouter = router({
 	searchProxy: orgProcedure
@@ -31,7 +15,7 @@ export const qboRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const client = await assertClientInOrg(ctx, input.clientId);
+			const client = await ensureClientInOrg(ctx.orgId, input.clientId);
 			try {
 				const rows = await searchQboEntityList(
 					client,
