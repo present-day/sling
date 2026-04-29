@@ -26,7 +26,10 @@ const bodySchema = z.object({
 	threadId: z.string().optional(),
 });
 
-function mapCloseChatError(error: unknown): { status: number; message: string } {
+function mapCloseChatError(error: unknown): {
+	status: number;
+	message: string;
+} {
 	const raw = error instanceof Error ? error.message : String(error);
 	const normalized = raw.toLowerCase();
 	if (normalized.includes("credit balance is too low")) {
@@ -199,7 +202,10 @@ export async function POST(
 			threadId,
 			error,
 		});
-		return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+		return NextResponse.json(
+			{ error: mapped.message },
+			{ status: mapped.status },
+		);
 	}
 }
 

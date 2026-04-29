@@ -17,8 +17,9 @@
  *
  *   set -a && source .env.local && set +a && bun test src/server/mcp/pool.integration.test.ts
  */
+/** biome-ignore-all lint/style/noNonNullAssertion: testing only */
 
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 // ── Hoist mocks before any module under test is imported ────────────────────
 
@@ -77,9 +78,9 @@ describe.skipIf(!hasCredentials)(
 			orgId: "smoke-test-org",
 			name: "Smoke Test Client",
 			realmId: process.env.QUICKBOOKS_REALM_ID!,
-			environment: (
-				process.env.QUICKBOOKS_ENVIRONMENT ?? "sandbox"
-			) as "sandbox" | "production",
+			environment: (process.env.QUICKBOOKS_ENVIRONMENT ?? "sandbox") as
+				| "sandbox"
+				| "production",
 			encryptedRefreshToken: process.env.QUICKBOOKS_REFRESH_TOKEN!,
 			tokenUpdatedAt: new Date(),
 			createdAt: new Date(),
@@ -89,46 +90,41 @@ describe.skipIf(!hasCredentials)(
 			await drainPool();
 		});
 
-		it(
-			"spawns the MCP child and returns a result from get_company_info",
-			async () => {
-				const result = await callQboTool(clientRow, "get_company_info", { company_id: undefined });
+		it("spawns the MCP child and returns a result from get_company_info", async () => {
+			const result = await callQboTool(clientRow, "get_company_info", {
+				company_id: undefined,
+			});
 
-				// The MCP protocol wraps results in { content: [...] }
-				expect(result).toBeDefined();
-				expect(result).toHaveProperty("content");
+			// The MCP protocol wraps results in { content: [...] }
+			expect(result).toBeDefined();
+			expect(result).toHaveProperty("content");
 
-				const content = (result as { content: unknown[] }).content;
-				expect(Array.isArray(content)).toBe(true);
-				expect(content.length).toBeGreaterThan(0);
+			const content = (result as { content: unknown[] }).content;
+			expect(Array.isArray(content)).toBe(true);
+			expect(content.length).toBeGreaterThan(0);
 
-				// At least one content item should contain company info text
-				const text = content
-					.filter((c): c is { type: string; text: string } =>
+			// At least one content item should contain company info text
+			const text = content
+				.filter(
+					(c): c is { type: string; text: string } =>
 						typeof (c as Record<string, unknown>).text === "string",
-					)
-					.map((c) => c.text)
-					.join("\n");
+				)
+				.map((c) => c.text)
+				.join("\n");
 
-				expect(text.length).toBeGreaterThan(0);
-				console.log("[smoke] get_company_info response:", text.slice(0, 200));
-			},
-			15_000, // QB API can be slow — 15 s timeout
-		);
+			expect(text.length).toBeGreaterThan(0);
+			console.log("[smoke] get_company_info response:", text.slice(0, 200));
+		}, 15_000); // QB API can be slow — 15 s timeout
 
-		it(
-			"reuses the same child process on a second call (pool hit)",
-			async () => {
-				// Both calls should succeed and return without spawning a new process.
-				const [r1, r2] = await Promise.all([
-					callQboTool(clientRow, "get_company_info", { company_id: undefined }),
-					callQboTool(clientRow, "get_company_info", { company_id: undefined }),
-				]);
+		it("reuses the same child process on a second call (pool hit)", async () => {
+			// Both calls should succeed and return without spawning a new process.
+			const [r1, r2] = await Promise.all([
+				callQboTool(clientRow, "get_company_info", { company_id: undefined }),
+				callQboTool(clientRow, "get_company_info", { company_id: undefined }),
+			]);
 
-				expect(r1).toHaveProperty("content");
-				expect(r2).toHaveProperty("content");
-			},
-			15_000,
-		);
+			expect(r1).toHaveProperty("content");
+			expect(r2).toHaveProperty("content");
+		}, 15_000);
 	},
 );

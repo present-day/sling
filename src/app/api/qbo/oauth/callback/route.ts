@@ -36,7 +36,9 @@ export async function GET(req: Request) {
 	const state = url.searchParams.get("state");
 	const realmId = url.searchParams.get("realmId");
 	const cookieStore = await cookies();
-	const reconnectClientId = cookieStore.get("qbo_oauth_reconnect_client_id")?.value;
+	const reconnectClientId = cookieStore.get(
+		"qbo_oauth_reconnect_client_id",
+	)?.value;
 	const expected = cookieStore.get("qbo_oauth_state")?.value;
 	if (!code || !state || !realmId || !expected || state !== expected) {
 		cookieStore.delete("qbo_oauth_state");
@@ -79,10 +81,7 @@ export async function GET(req: Request) {
 			})
 			.where(eq(clients.id, reconnectClientId));
 		return NextResponse.redirect(
-			new URL(
-				`/clients/${reconnectClientId}/reports/profit-loss`,
-				req.url,
-			),
+			new URL(`/clients/${reconnectClientId}/reports/profit-loss`, req.url),
 		);
 	}
 

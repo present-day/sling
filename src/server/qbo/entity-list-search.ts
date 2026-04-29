@@ -1,63 +1,20 @@
 import "server-only";
-import {
-	ENTITY_QBO_QUERY_ENTITY,
-	ENTITY_SEARCH_QUERY_KEY,
-} from "@/lib/entity-search";
 import type { clients } from "@/server/db/schema";
-import {
-	buildEntityListQuery,
-	extractQueryRows,
-	runQuickBooksQuery,
-} from "@/server/qbo/intuit-query";
-import { getQuickBooksAccessTokenForClient } from "@/server/qbo/get-access-token";
+import { searchQboEntityListViaMcp } from "@/server/mcp/qbo-entity-search";
 
 type ClientRow = typeof clients.$inferSelect;
 
+/**
+ * Search a QuickBooks entity list for a given client.
+ * Delegates to the quickbooks-mcp pool — no direct Intuit HTTP calls here.
+ *
+ * Caller must have already verified tenant access (ensureClientInOrg).
+ */
 export async function searchQboEntityList(
 	client: ClientRow,
 	entityStem: string,
 	textFilter: string | undefined,
 	limit: number,
 ): Promise<unknown[]> {
-	const qboEntity = ENTITY_QBO_QUERY_ENTITY[entityStem];
-	if (!qboEntity) {
-		throw new Error(`Unknown QuickBooks entity stem: ${entityStem}`);
-	}
-
-	const q = textFilter?.trim();
-	const accessToken = await getQuickBooksAccessTokenForClient(client);
-
-	let sql: string;
-	if (entityStem === "accounts") {
-		sql = buildEntityListQuery({
-			qboEntity,
-			filterField: q ? "Name" : undefined,
-			searchText: q,
-			limit,
-		});
-	} else if (entityStem === "attachables") {
-		sql = buildEntityListQuery({
-			qboEntity,
-			filterField: q ? "FileName" : undefined,
-			searchText: q,
-			limit,
-		});
-	} else {
-		const field = ENTITY_SEARCH_QUERY_KEY[entityStem] ?? "DisplayName";
-		sql = buildEntityListQuery({
-			qboEntity,
-			filterField: q ? field : undefined,
-			searchText: q,
-			limit,
-		});
-	}
-
-	const raw = await runQuickBooksQuery({
-		realmId: client.realmId,
-		environment: client.environment,
-		accessToken,
-		query: sql,
-	});
-
-	return extractQueryRows(raw, qboEntity);
+	return searchQboEntityListViaMcp(client, entityStem, textFilter, limit);
 }

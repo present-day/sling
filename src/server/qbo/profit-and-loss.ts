@@ -2,12 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import type { clients } from "@/server/db/schema";
-import {
-	QBO_MINOR_VERSION,
-	quickBooksApiOrigin,
-	throwIfQuickBooksFault,
-} from "@/server/qbo/intuit-query";
-import { getQuickBooksAccessTokenForClient } from "@/server/qbo/get-access-token";
+import { callQboTool } from "@/server/mcp/pool";
 
 type ClientRow = typeof clients.$inferSelect;
 
@@ -228,70 +223,23 @@ export function normalizeQuickBooksPnl(
 	};
 }
 
-/**
- * Fetches the QuickBooks Profit and Loss report and returns a validated body plus
- * flattened lines for table rendering.
- */
-export async function fetchProfitAndLossReport(options: {
-	client: ClientRow;
-	startDate: string;
-	endDate: string;
-	accountingMethod?: "Cash" | "Accrual";
-	summarizeColumnBy?: "Total" | "Month" | "Week" | "Days" | "Quarter" | "Year";
-}): Promise<ProfitAndLossReport> {
-	const { client, startDate, endDate } = options;
-	const accessToken = await getQuickBooksAccessTokenForClient(client);
-	const origin = quickBooksApiOrigin(client.environment);
-	const url = new URL(
-		`/v3/company/${client.realmId}/reports/ProfitAndLoss`,
-		origin,
-	);
-	url.searchParams.set("start_date", startDate);
-	url.searchParams.set("end_date", endDate);
-	url.searchParams.set("minorversion", QBO_MINOR_VERSION);
-	if (options.accountingMethod) {
-		url.searchParams.set("accounting_method", options.accountingMethod);
-	}
-	if (options.summarizeColumnBy) {
-		url.searchParams.set("summarize_column_by", options.summarizeColumnBy);
-	}
+// ---------------------------------------------------------------------------
+// Shared report assembler — used by both MCP and HTTP paths
+// ---------------------------------------------------------------------------
 
-	const res = await fetch(url, {
-		headers: {
-			Authorization: `Bearer ${accessToken}`,
-			Accept: "application/json",
-		},
-	});
-	const text = await res.text();
-	let json: unknown;
-	try {
-		json = JSON.parse(text) as unknown;
-	} catch {
-		throw new Error(
-			`QuickBooks ProfitAndLoss: invalid JSON (${res.status}): ${text.slice(0, 200)}`,
-		);
-	}
-	throwIfQuickBooksFault(json);
-	if (!res.ok) {
-		throw new Error(
-			`QuickBooks ProfitAndLoss failed: ${res.status} ${
-				typeof json === "object" && json !== null ? JSON.stringify(json) : text
-			}`,
-		);
-	}
-
+function assembleReport(rawBody: unknown): ProfitAndLossReport {
 	const top =
-		typeof json === "object" && json !== null
-			? (json as Record<string, unknown>)
+		typeof rawBody === "object" && rawBody !== null
+			? (rawBody as Record<string, unknown>)
 			: null;
-	if (!top) {
-		throw new Error("QuickBooks ProfitAndLoss: empty response");
-	}
+	if (!top) throw new Error("QuickBooks ProfitAndLoss: empty response");
 
+	// node-quickbooks returns the body unwrapped; the direct HTTP API wraps it
+	// under a "Report" key. Handle both.
 	const bodyRaw =
 		"Report" in top && top.Report && typeof top.Report === "object"
 			? top.Report
-			: json;
+			: rawBody;
 
 	const body = profitAndLossReportBodySchema.parse(bodyRaw);
 	const { lines, columns, reportName } = normalizeQuickBooksPnl(body);
@@ -305,4 +253,62 @@ export async function fetchProfitAndLossReport(options: {
 		normalizedLines: lines,
 		columns: columns.length ? columns : [{ title: "Amount" }],
 	};
+}
+
+// ---------------------------------------------------------------------------
+// MCP-backed path
+// ---------------------------------------------------------------------------
+
+async function fetchProfitAndLossViaMcp(options: {
+	client: ClientRow;
+	startDate: string;
+	endDate: string;
+	accountingMethod?: "Cash" | "Accrual";
+	summarizeColumnBy?: "Total" | "Month" | "Week" | "Days" | "Quarter" | "Year";
+}): Promise<ProfitAndLossReport> {
+	const args: Record<string, unknown> = {
+		start_date: options.startDate,
+		end_date: options.endDate,
+	};
+	if (options.accountingMethod)
+		args.accounting_method = options.accountingMethod;
+	if (options.summarizeColumnBy)
+		args.summarize_column_by = options.summarizeColumnBy;
+
+	const result = await callQboTool(options.client, "get_profit_and_loss", args);
+
+	// Tool response: [{ text: "Profit and Loss Report:" }, { text: "<json>" }]
+	const content = (result as { content?: { text?: string }[] })?.content ?? [];
+	const jsonItem = content[1];
+	if (!jsonItem?.text) {
+		throw new Error("QuickBooks ProfitAndLoss: unexpected MCP response shape");
+	}
+
+	let rawBody: unknown;
+	try {
+		rawBody = JSON.parse(jsonItem.text);
+	} catch {
+		throw new Error(
+			`QuickBooks ProfitAndLoss: MCP returned non-JSON: ${jsonItem.text.slice(0, 200)}`,
+		);
+	}
+
+	return assembleReport(rawBody);
+}
+
+// ---------------------------------------------------------------------------
+// Public API — same signature as before
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches the QuickBooks Profit and Loss report via the quickbooks-mcp pool.
+ */
+export async function fetchProfitAndLossReport(options: {
+	client: ClientRow;
+	startDate: string;
+	endDate: string;
+	accountingMethod?: "Cash" | "Accrual";
+	summarizeColumnBy?: "Total" | "Month" | "Week" | "Days" | "Quarter" | "Year";
+}): Promise<ProfitAndLossReport> {
+	return fetchProfitAndLossViaMcp(options);
 }

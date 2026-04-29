@@ -1,14 +1,14 @@
 import "server-only";
-import { createInterface } from "node:readline";
 import type { ChildProcess } from "node:child_process";
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { createInterface } from "node:readline";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { eq } from "drizzle-orm";
+import { getEnv } from "@/lib/env";
 import { db } from "@/server/db/client";
 import { clients } from "@/server/db/schema";
 import { decryptRefreshToken, encryptRefreshToken } from "@/server/qbo/tokens";
-import { getEnv } from "@/lib/env";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -51,10 +51,7 @@ const pool = new Map<string, PoolEntry>();
 function serverPath(): string {
 	return (
 		process.env.MCP_QBO_SERVER_PATH ??
-		path.resolve(
-			process.cwd(),
-			"../../../quickbooks-mcp/dist/index.js",
-		)
+		path.resolve(process.cwd(), "../quickbooks-mcp/dist/index.js")
 	);
 }
 
@@ -84,10 +81,7 @@ async function evict(clientId: string): Promise<void> {
  *
  * Non-JSON lines (ordinary log output) are silently ignored.
  */
-function watchStderr(
-	stderr: NodeJS.ReadableStream,
-	clientId: string,
-): void {
+function watchStderr(stderr: NodeJS.ReadableStream, clientId: string): void {
 	const rl = createInterface({ input: stderr, crlfDelay: Infinity });
 
 	rl.on("line", (line) => {
@@ -166,9 +160,7 @@ async function spawnEntry(clientRow: ClientRow): Promise<PoolEntry> {
 	// _process is set during transport.start(), which connect() calls.
 	// We cast through unknown because _process is a private field on the SDK
 	// class — it is reliably present after connect() resolves.
-	const proc = (
-		transport as unknown as { _process?: ChildProcess }
-	)._process;
+	const proc = (transport as unknown as { _process?: ChildProcess })._process;
 
 	if (proc?.stderr) {
 		watchStderr(proc.stderr, clientRow.id);
