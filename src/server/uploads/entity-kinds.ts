@@ -95,9 +95,13 @@ export const extractedFieldsSchema = z
 
 export type ExtractedFields = z.infer<typeof extractedFieldsSchema>
 
+// Anthropic's structured-output JSON Schema subset doesn't accept
+// minItems/maxItems on arrays or min/max on numbers, so we omit those
+// constraints from the schema sent to the model and enforce them via prompt +
+// post-validation instead. clampClassification() handles the post-trim.
 export const candidateSchema = z.object({
 	entityKind: z.enum(ENTITY_KIND_VALUES as [EntityKind, ...EntityKind[]]),
-	confidence: z.number().min(0).max(1),
+	confidence: z.number(),
 	extractedFields: extractedFieldsSchema,
 	reasoning: z.string(),
 })
@@ -105,8 +109,27 @@ export const candidateSchema = z.object({
 export type Candidate = z.infer<typeof candidateSchema>
 
 export const classificationSchema = z.object({
-	candidates: z.array(candidateSchema).min(1).max(3),
+	candidates: z.array(candidateSchema),
 	notes: z.string().optional(),
 })
 
 export type Classification = z.infer<typeof classificationSchema>
+
+export const MAX_CANDIDATES = 3
+
+/**
+ * Trim the model output to our enforced shape: at most MAX_CANDIDATES, all
+ * confidences clamped to [0, 1]. Throws if the model returned no candidates.
+ */
+export function clampClassification(raw: Classification): Classification {
+	if (raw.candidates.length === 0) {
+		throw new Error("Classifier returned no candidates")
+	}
+	return {
+		...raw,
+		candidates: raw.candidates.slice(0, MAX_CANDIDATES).map((c) => ({
+			...c,
+			confidence: Math.max(0, Math.min(1, c.confidence)),
+		})),
+	}
+}

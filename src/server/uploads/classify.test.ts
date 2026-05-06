@@ -5,11 +5,13 @@ import {
 	isSupportedMime,
 	UnsupportedMimeError,
 } from "./classify"
-import { classificationSchema, ENTITY_KIND_VALUES } from "./entity-kinds"
+import { clampClassification, classificationSchema } from "./entity-kinds"
 
-function fakeGenerate(object: unknown) {
+function fakeGenerate(payload: unknown) {
+	const text = `\`\`\`json\n${JSON.stringify(payload)}\n\`\`\``
 	return vi.fn().mockResolvedValue({
-		object,
+		text,
+		content: [{ type: "text", text }],
 		usage: {},
 		finishReason: "stop",
 		warnings: [],
@@ -199,7 +201,7 @@ describe("classifyDocument", () => {
 		expect(text).toContain("2026-04-02,Rent,2000.00")
 	})
 
-	it("schema rejects malformed model output", () => {
+	it("schema rejects unknown entity kinds", () => {
 		expect(() =>
 			classificationSchema.parse({
 				candidates: [
@@ -212,17 +214,46 @@ describe("classifyDocument", () => {
 				],
 			}),
 		).toThrow()
-		expect(() =>
-			classificationSchema.parse({
-				candidates: [
-					{
-						entityKind: ENTITY_KIND_VALUES[0],
-						confidence: 1.5,
-						extractedFields: {},
-						reasoning: "test",
-					},
-				],
-			}),
-		).toThrow()
+	})
+
+	it("clampClassification trims to MAX_CANDIDATES and clamps confidence", () => {
+		const tooMany = {
+			candidates: [
+				{
+					entityKind: "Bill" as const,
+					confidence: 1.5,
+					extractedFields: {},
+					reasoning: "a",
+				},
+				{
+					entityKind: "Invoice" as const,
+					confidence: 0.5,
+					extractedFields: {},
+					reasoning: "b",
+				},
+				{
+					entityKind: "SalesReceipt" as const,
+					confidence: 0.4,
+					extractedFields: {},
+					reasoning: "c",
+				},
+				{
+					entityKind: "Vendor" as const,
+					confidence: -0.2,
+					extractedFields: {},
+					reasoning: "d",
+				},
+			],
+		}
+		const clamped = clampClassification(tooMany)
+		expect(clamped.candidates).toHaveLength(3)
+		expect(clamped.candidates[0]?.confidence).toBe(1)
+		expect(clamped.candidates.some((c) => c.entityKind === "Vendor")).toBe(
+			false,
+		)
+	})
+
+	it("clampClassification throws on empty candidates", () => {
+		expect(() => clampClassification({ candidates: [] })).toThrow()
 	})
 })
