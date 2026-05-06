@@ -1,11 +1,11 @@
-import { relations, sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm"
 import {
 	index,
 	integer,
 	sqliteTable,
 	text,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/sqlite-core"
 import {
 	account,
 	accountRelations,
@@ -20,9 +20,9 @@ import {
 	user,
 	userRelations,
 	verification,
-} from "./auth-schema";
+} from "./auth-schema"
 
-export * from "./auth-schema";
+export * from "./auth-schema"
 
 export const clients = sqliteTable(
 	"clients",
@@ -48,7 +48,7 @@ export const clients = sqliteTable(
 		index("clients_org_idx").on(t.orgId),
 		uniqueIndex("clients_org_realm_uidx").on(t.orgId, t.realmId),
 	],
-);
+)
 
 export const clientMembers = sqliteTable(
 	"client_members",
@@ -69,7 +69,7 @@ export const clientMembers = sqliteTable(
 		index("client_members_user_idx").on(t.userId),
 		uniqueIndex("client_members_uidx").on(t.clientId, t.userId),
 	],
-);
+)
 
 export const reportTemplates = sqliteTable(
 	"report_templates",
@@ -93,7 +93,7 @@ export const reportTemplates = sqliteTable(
 			.notNull(),
 	},
 	(t) => [uniqueIndex("report_templates_org_slug_uidx").on(t.orgId, t.slug)],
-);
+)
 
 export const chatThreads = sqliteTable(
 	"chat_threads",
@@ -122,7 +122,7 @@ export const chatThreads = sqliteTable(
 		index("chat_threads_user_idx").on(t.userId),
 		index("chat_threads_context_idx").on(t.contextKind, t.contextId),
 	],
-);
+)
 
 export const chatMessages = sqliteTable(
 	"chat_messages",
@@ -138,7 +138,7 @@ export const chatMessages = sqliteTable(
 			.notNull(),
 	},
 	(t) => [index("chat_messages_thread_idx").on(t.threadId)],
-);
+)
 
 export const monthEndCloses = sqliteTable(
 	"month_end_closes",
@@ -183,7 +183,7 @@ export const monthEndCloses = sqliteTable(
 			t.periodEnd,
 		),
 	],
-);
+)
 
 export const monthEndFindingDispositions = sqliteTable(
 	"month_end_finding_dispositions",
@@ -212,7 +212,47 @@ export const monthEndFindingDispositions = sqliteTable(
 		),
 		index("month_end_finding_dispositions_close_idx").on(t.closeId),
 	],
-);
+)
+
+export const documentUploads = sqliteTable(
+	"document_uploads",
+	{
+		id: text("id").primaryKey(),
+		orgId: text("org_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		clientId: text("client_id")
+			.notNull()
+			.references(() => clients.id, { onDelete: "cascade" }),
+		uploaderId: text("uploader_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		fileName: text("file_name").notNull(),
+		mime: text("mime").notNull(),
+		byteLength: integer("byte_length").notNull(),
+		/** Path under the app data dir, e.g. `.data/uploads/{orgId}/{id}.{ext}`. */
+		storagePath: text("storage_path").notNull(),
+		/** Raw classifier output as returned from `classifyDocument`. */
+		classificationJson: text("classification_json", { mode: "json" }),
+		/** Entity kind the user accepted from the classifier candidates. */
+		chosenEntityKind: text("chosen_entity_kind"),
+		/** Intuit entity id created from this upload, once filed. */
+		createdEntityId: text("created_entity_id"),
+		status: text("status", {
+			enum: ["pending", "classified", "abandoned", "created", "failed"],
+		})
+			.notNull()
+			.default("pending"),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+	},
+	(t) => [
+		index("document_uploads_org_idx").on(t.orgId),
+		index("document_uploads_client_idx").on(t.clientId),
+		index("document_uploads_uploader_idx").on(t.uploaderId),
+	],
+)
 
 export const licenses = sqliteTable(
 	"licenses",
@@ -229,7 +269,7 @@ export const licenses = sqliteTable(
 		maxClients: integer("max_clients").notNull().default(10),
 	},
 	(t) => [index("licenses_org_idx").on(t.orgId)],
-);
+)
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
 	organization: one(organization, {
@@ -237,7 +277,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
 		references: [organization.id],
 	}),
 	members: many(clientMembers),
-}));
+}))
 
 export const clientMembersRelations = relations(clientMembers, ({ one }) => ({
 	client: one(clients, {
@@ -248,7 +288,7 @@ export const clientMembersRelations = relations(clientMembers, ({ one }) => ({
 		fields: [clientMembers.userId],
 		references: [user.id],
 	}),
-}));
+}))
 
 export const reportTemplatesRelations = relations(
 	reportTemplates,
@@ -258,7 +298,7 @@ export const reportTemplatesRelations = relations(
 			references: [organization.id],
 		}),
 	}),
-);
+)
 
 export const chatThreadsRelations = relations(chatThreads, ({ one, many }) => ({
 	organization: one(organization, {
@@ -274,21 +314,39 @@ export const chatThreadsRelations = relations(chatThreads, ({ one, many }) => ({
 		references: [user.id],
 	}),
 	messages: many(chatMessages),
-}));
+}))
 
 export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 	thread: one(chatThreads, {
 		fields: [chatMessages.threadId],
 		references: [chatThreads.id],
 	}),
-}));
+}))
 
 export const licensesRelations = relations(licenses, ({ one }) => ({
 	organization: one(organization, {
 		fields: [licenses.orgId],
 		references: [organization.id],
 	}),
-}));
+}))
+
+export const documentUploadsRelations = relations(
+	documentUploads,
+	({ one }) => ({
+		organization: one(organization, {
+			fields: [documentUploads.orgId],
+			references: [organization.id],
+		}),
+		client: one(clients, {
+			fields: [documentUploads.clientId],
+			references: [clients.id],
+		}),
+		uploader: one(user, {
+			fields: [documentUploads.uploaderId],
+			references: [user.id],
+		}),
+	}),
+)
 
 export const monthEndClosesRelations = relations(
 	monthEndCloses,
@@ -307,7 +365,7 @@ export const monthEndClosesRelations = relations(
 		}),
 		dispositions: many(monthEndFindingDispositions),
 	}),
-);
+)
 
 export const monthEndFindingDispositionsRelations = relations(
 	monthEndFindingDispositions,
@@ -321,7 +379,7 @@ export const monthEndFindingDispositionsRelations = relations(
 			references: [user.id],
 		}),
 	}),
-);
+)
 
 export const schema = {
 	user,
@@ -339,6 +397,8 @@ export const schema = {
 	licenses,
 	monthEndCloses,
 	monthEndFindingDispositions,
+	documentUploads,
+	documentUploadsRelations,
 	userRelations,
 	sessionRelations,
 	accountRelations,
@@ -353,4 +413,4 @@ export const schema = {
 	licensesRelations,
 	monthEndClosesRelations,
 	monthEndFindingDispositionsRelations,
-};
+}
