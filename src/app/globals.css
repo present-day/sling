@@ -46,6 +46,25 @@
 	--radius-2xl: calc(var(--radius) * 1.8);
 	--radius-3xl: calc(var(--radius) * 2.2);
 	--radius-4xl: calc(var(--radius) * 2.6);
+
+	/* Sling cockpit semantic tokens (additive — do not remove shadcn tokens above) */
+	--color-surface-base: var(--surface-base);
+	--color-surface-raised: var(--surface-raised);
+	--color-surface-sunken: var(--surface-sunken);
+	--color-ink-primary: var(--ink-primary);
+	--color-ink-secondary: var(--ink-secondary);
+	--color-ink-muted: var(--ink-muted);
+	--color-brand: var(--brand);
+	--color-brand-foreground: var(--brand-foreground);
+	--color-brand-subtle: var(--brand-subtle);
+	--color-positive: var(--positive);
+	--color-positive-subtle: var(--positive-subtle);
+	--color-negative: var(--negative);
+	--color-negative-subtle: var(--negative-subtle);
+	--color-warning: var(--warning);
+	--color-warning-subtle: var(--warning-subtle);
+	--color-border-subtle: var(--border-subtle);
+	--color-border-strong: var(--border-strong);
 }
 
 :root {
@@ -81,6 +100,25 @@
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
+
+	/* Sling cockpit semantic palette — light */
+	--surface-base: oklch(0.992 0.003 95); /* warm off-white */
+	--surface-raised: oklch(1 0 0); /* card */
+	--surface-sunken: oklch(0.965 0.004 95); /* table headers, code blocks */
+	--ink-primary: oklch(0.18 0.01 250); /* graphite, not pure black */
+	--ink-secondary: oklch(0.42 0.01 250);
+	--ink-muted: oklch(0.58 0.01 250);
+	--brand: oklch(0.52 0.14 252); /* cool indigo, not banking blue */
+	--brand-foreground: oklch(0.99 0 0);
+	--brand-subtle: oklch(0.95 0.02 252);
+	--positive: oklch(0.52 0.1 175); /* muted teal — variance up */
+	--positive-subtle: oklch(0.94 0.03 175);
+	--negative: oklch(0.55 0.14 25); /* muted red-orange — variance down */
+	--negative-subtle: oklch(0.95 0.025 25);
+	--warning: oklch(0.65 0.14 65); /* amber — needs attention */
+	--warning-subtle: oklch(0.95 0.04 75);
+	--border-subtle: oklch(0.94 0.005 250);
+	--border-strong: oklch(0.86 0.005 250);
 }
 
 .dark {
@@ -115,6 +153,37 @@
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.556 0 0);
+
+	/* Sling cockpit semantic palette — dark (peer of light, not inverted) */
+	--surface-base: oklch(0.155 0.01 250); /* cool near-black, not pure */
+	--surface-raised: oklch(0.2 0.01 250);
+	--surface-sunken: oklch(0.125 0.01 250);
+	--ink-primary: oklch(0.96 0.005 250);
+	--ink-secondary: oklch(0.78 0.008 250);
+	--ink-muted: oklch(0.6 0.01 250);
+	--brand: oklch(0.72 0.15 252);
+	--brand-foreground: oklch(0.14 0.01 250);
+	--brand-subtle: oklch(0.28 0.06 252);
+	--positive: oklch(0.74 0.11 175);
+	--positive-subtle: oklch(0.26 0.04 175);
+	--negative: oklch(0.74 0.14 25);
+	--negative-subtle: oklch(0.28 0.05 25);
+	--warning: oklch(0.8 0.15 75);
+	--warning-subtle: oklch(0.3 0.05 75);
+	--border-subtle: oklch(1 0 0 / 7%);
+	--border-strong: oklch(1 0 0 / 16%);
+}
+
+@layer base {
+	/* Numerics-first: any element using mono font gets tabular figures + slashed zero */
+	.font-mono,
+	[class*="font-mono"] {
+		font-feature-settings:
+			"tnum" 1,
+			"zero" 1,
+			"cv11" 1;
+		font-variant-numeric: tabular-nums slashed-zero;
+	}
 }
 
 @layer base {
