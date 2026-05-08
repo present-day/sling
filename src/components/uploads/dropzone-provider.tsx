@@ -109,7 +109,7 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 								err instanceof Error ? err.message : "Failed to record choice",
 						})
 					})
-				return current
+				return { status: "committing", uploadId, entityKind, fileName }
 			})
 		},
 		[chooseMutation],
