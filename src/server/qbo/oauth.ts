@@ -1,5 +1,22 @@
 import { getEnv } from "@/lib/env"
 
+async function normalizedOAuthError(res: Response): Promise<string> {
+	const text = await res.text().catch(() => "")
+	let code = "unknown_error"
+	try {
+		const parsed = JSON.parse(text) as {
+			error?: unknown
+			error_description?: unknown
+		}
+		if (typeof parsed.error === "string") code = parsed.error
+		else if (typeof parsed.error_description === "string")
+			code = parsed.error_description
+	} catch {
+		// Non-JSON body — keep "unknown_error" so we never leak raw upstream text.
+	}
+	return `${res.status} (${code})`
+}
+
 export function buildQuickBooksAuthorizeUrl(state: string): string {
 	const env = getEnv()
 	const params = new URLSearchParams({
@@ -35,8 +52,7 @@ export async function exchangeAuthorizationCode(code: string, realmId: string) {
 		},
 	)
 	if (!res.ok) {
-		const text = await res.text()
-		throw new Error(`Token exchange failed: ${res.status} ${text}`)
+		throw new Error(`Token exchange failed: ${await normalizedOAuthError(res)}`)
 	}
 	const json = (await res.json()) as {
 		refresh_token?: string
@@ -78,8 +94,9 @@ export async function refreshQuickBooksAccessToken(
 		},
 	)
 	if (!res.ok) {
-		const text = await res.text()
-		throw new Error(`QuickBooks token refresh failed: ${res.status} ${text}`)
+		throw new Error(
+			`QuickBooks token refresh failed: ${await normalizedOAuthError(res)}`,
+		)
 	}
 	const json = (await res.json()) as {
 		access_token?: string
