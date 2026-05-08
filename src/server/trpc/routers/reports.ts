@@ -1,14 +1,14 @@
-import { TRPCError } from "@trpc/server";
-import { z } from "zod";
-import { parseProfitLossConfig } from "@/server/reports/profit-loss-config";
-import { loadProfitLossData } from "@/server/reports/profit-loss-data";
-import { orgProcedure, router } from "../init";
+import { TRPCError } from "@trpc/server"
+import { z } from "zod"
+import { parseProfitLossConfig } from "@/server/reports/profit-loss-config"
+import { loadProfitLossData } from "@/server/reports/profit-loss-data"
+import { orgProcedure, router } from "../init"
 
 export const reportsRouter = router({
 	list: orgProcedure.query(async ({ ctx }) => {
 		const rows = await ctx.db.query.reportTemplates.findMany({
 			where: (r, { eq: eqFn }) => eqFn(r.orgId, ctx.orgId),
-		});
+		})
 		return z
 			.array(
 				z.object({
@@ -24,7 +24,7 @@ export const reportsRouter = router({
 					...r,
 					hasSourcePdf: Boolean(r.sourcePdfStoragePath),
 				})),
-			);
+			)
 	}),
 	getBySlug: orgProcedure
 		.input(z.object({ slug: z.string() }))
@@ -32,11 +32,11 @@ export const reportsRouter = router({
 			const row = await ctx.db.query.reportTemplates.findFirst({
 				where: (r, { eq: eqFn, and: andFn }) =>
 					andFn(eqFn(r.orgId, ctx.orgId), eqFn(r.slug, input.slug)),
-			});
+			})
 			if (!row) {
-				return null;
+				return null
 			}
-			const { config: _raw, ...rest } = row;
+			const { config: _raw, ...rest } = row
 			return z
 				.object({
 					id: z.string(),
@@ -50,7 +50,7 @@ export const reportsRouter = router({
 				.parse({
 					...rest,
 					config: parseProfitLossConfig(row.config),
-				});
+				})
 		}),
 	/**
 	 * Live Profit & Loss from QuickBooks, merged with the org’s `profit-loss` template (or defaults).
@@ -76,11 +76,11 @@ export const reportsRouter = router({
 					endDate: input.endDate,
 					accountingMethod: input.accountingMethod,
 					summarizeColumnBy: input.summarizeColumnBy,
-				});
+				})
 			} catch (e) {
 				const message =
-					e instanceof Error ? e.message : "QuickBooks P&L request failed";
-				throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+					e instanceof Error ? e.message : "QuickBooks P&L request failed"
+				throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message })
 			}
 		}),
-});
+})

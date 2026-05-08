@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import Link from "next/link"
+import { buttonVariants } from "@/components/ui/button"
 import {
 	Table,
 	TableBody,
@@ -9,11 +9,11 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table";
-import { trpc } from "@/trpc/react";
+} from "@/components/ui/table"
+import { trpc } from "@/trpc/react"
 
 export default function ClientsPage() {
-	const { data, isLoading, error } = trpc.clients.list.useQuery();
+	const { data, isLoading, error } = trpc.clients.list.useQuery()
 
 	return (
 		<div className="space-y-6">
@@ -65,5 +65,5 @@ export default function ClientsPage() {
 				</Table>
 			)}
 		</div>
-	);
+	)
 }

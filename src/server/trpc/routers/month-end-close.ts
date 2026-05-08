@@ -1,21 +1,18 @@
-import { createId } from "@paralleldrive/cuid2";
-import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
-import { z } from "zod";
-import {
-	monthEndCloses,
-	monthEndFindingDispositions,
-} from "@/server/db/schema";
-import { runMonthEndClose } from "@/server/reports/month-end/run";
+import { createId } from "@paralleldrive/cuid2"
+import { TRPCError } from "@trpc/server"
+import { and, desc, eq } from "drizzle-orm"
+import { z } from "zod"
+import { monthEndCloses, monthEndFindingDispositions } from "@/server/db/schema"
+import { runMonthEndClose } from "@/server/reports/month-end/run"
 import {
 	findingSchema,
 	narrativePayloadSchema,
-} from "@/server/reports/month-end/types";
-import { orgProcedure, router } from "../init";
+} from "@/server/reports/month-end/types"
+import { orgProcedure, router } from "../init"
 
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/
 
-const dispositionSchema = z.enum(["accepted", "dismissed", "noted"]);
+const dispositionSchema = z.enum(["accepted", "dismissed", "noted"])
 
 const closeRowSchema = z.object({
 	id: z.string(),
@@ -36,7 +33,7 @@ const closeRowSchema = z.object({
 			updatedAt: z.date(),
 		}),
 	),
-});
+})
 
 async function fetchCloseWithDispositions(
 	ctx: { db: typeof import("@/server/db/client").db },
@@ -47,30 +44,30 @@ async function fetchCloseWithDispositions(
 		where: (c, { eq: eqFn, and: andFn }) =>
 			andFn(eqFn(c.id, closeId), eqFn(c.orgId, orgId)),
 		with: { dispositions: true },
-	});
+	})
 	if (!row) {
-		throw new TRPCError({ code: "NOT_FOUND", message: "Close not found" });
+		throw new TRPCError({ code: "NOT_FOUND", message: "Close not found" })
 	}
-	return row;
+	return row
 }
 
 function serializeClose(row: {
-	id: string;
-	clientId: string;
-	periodStart: string;
-	periodEnd: string;
-	accountingMethod: "Accrual" | "Cash";
-	baselineKey: string;
-	status: "open" | "signed_off";
-	findings: unknown;
-	narrative: unknown;
-	createdAt: Date | number;
+	id: string
+	clientId: string
+	periodStart: string
+	periodEnd: string
+	accountingMethod: "Accrual" | "Cash"
+	baselineKey: string
+	status: "open" | "signed_off"
+	findings: unknown
+	narrative: unknown
+	createdAt: Date | number
 	dispositions: {
-		findingId: string;
-		disposition: "accepted" | "dismissed" | "noted";
-		note: string | null;
-		updatedAt: Date | number;
-	}[];
+		findingId: string
+		disposition: "accepted" | "dismissed" | "noted"
+		note: string | null
+		updatedAt: Date | number
+	}[]
 }) {
 	return closeRowSchema.parse({
 		id: row.id,
@@ -89,7 +86,7 @@ function serializeClose(row: {
 			note: d.note,
 			updatedAt: new Date(d.updatedAt),
 		})),
-	});
+	})
 }
 
 export const monthEndCloseRouter = router({
@@ -113,16 +110,16 @@ export const monthEndCloseRouter = router({
 					endDate: input.endDate,
 					accountingMethod: input.accountingMethod,
 					baselineKey: input.baselineKey,
-				});
-				const row = await fetchCloseWithDispositions(ctx, ctx.orgId, result.id);
-				return serializeClose(row);
+				})
+				const row = await fetchCloseWithDispositions(ctx, ctx.orgId, result.id)
+				return serializeClose(row)
 			} catch (e) {
 				const message =
-					e instanceof Error ? e.message : "Month-end close failed";
+					e instanceof Error ? e.message : "Month-end close failed"
 				throw new TRPCError({
 					code: "INTERNAL_SERVER_ERROR",
 					message,
-				});
+				})
 			}
 		}),
 
@@ -145,11 +142,11 @@ export const monthEndCloseRouter = router({
 					),
 				orderBy: (c, { desc: descFn }) => descFn(c.createdAt),
 				with: { dispositions: true },
-			});
+			})
 			if (!row) {
-				return null;
+				return null
 			}
-			return serializeClose(row);
+			return serializeClose(row)
 		}),
 
 	getById: orgProcedure
@@ -159,8 +156,8 @@ export const monthEndCloseRouter = router({
 				ctx,
 				ctx.orgId,
 				input.closeId,
-			);
-			return serializeClose(row);
+			)
+			return serializeClose(row)
 		}),
 
 	listByClient: orgProcedure
@@ -188,7 +185,7 @@ export const monthEndCloseRouter = router({
 					),
 				)
 				.orderBy(desc(monthEndCloses.createdAt))
-				.limit(input.limit);
+				.limit(input.limit)
 			return z
 				.array(
 					z.object({
@@ -205,7 +202,7 @@ export const monthEndCloseRouter = router({
 						...r,
 						createdAt: new Date(r.createdAt),
 					})),
-				);
+				)
 		}),
 
 	setDisposition: orgProcedure
@@ -221,16 +218,16 @@ export const monthEndCloseRouter = router({
 			const close = await ctx.db.query.monthEndCloses.findFirst({
 				where: (c, { eq: eqFn, and: andFn }) =>
 					andFn(eqFn(c.id, input.closeId), eqFn(c.orgId, ctx.orgId)),
-			});
+			})
 			if (!close) {
-				throw new TRPCError({ code: "NOT_FOUND", message: "Close not found" });
+				throw new TRPCError({ code: "NOT_FOUND", message: "Close not found" })
 			}
-			const findings = (close.findings as { id: string }[]) ?? [];
+			const findings = (close.findings as { id: string }[]) ?? []
 			if (!findings.some((f) => f.id === input.findingId)) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
 					message: "Finding not part of this close",
-				});
+				})
 			}
 			const existing = await ctx.db.query.monthEndFindingDispositions.findFirst(
 				{
@@ -240,7 +237,7 @@ export const monthEndCloseRouter = router({
 							eqFn(d.findingId, input.findingId),
 						),
 				},
-			);
+			)
 			if (existing) {
 				await ctx.db
 					.update(monthEndFindingDispositions)
@@ -249,7 +246,7 @@ export const monthEndCloseRouter = router({
 						note: input.note ?? null,
 						userId: ctx.session.user.id,
 					})
-					.where(eq(monthEndFindingDispositions.id, existing.id));
+					.where(eq(monthEndFindingDispositions.id, existing.id))
 			} else {
 				await ctx.db.insert(monthEndFindingDispositions).values({
 					id: createId(),
@@ -258,8 +255,8 @@ export const monthEndCloseRouter = router({
 					disposition: input.disposition,
 					note: input.note ?? null,
 					userId: ctx.session.user.id,
-				});
+				})
 			}
-			return z.object({ ok: z.literal(true) }).parse({ ok: true });
+			return z.object({ ok: z.literal(true) }).parse({ ok: true })
 		}),
-});
+})

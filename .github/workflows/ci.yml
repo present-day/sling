@@ -16,9 +16,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - name: Install (workspace)
+      - name: Install
         run: bun install
       - name: Lint
         run: bun run lint
+      - name: Test
+        run: bun run test
+      - name: Prepare data dir
+        run: mkdir -p .data
       - name: Build Next app
-        run: bun run build:console
+        run: bun run build

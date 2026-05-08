@@ -1,8 +1,8 @@
-import "server-only";
-import type { clients } from "@/server/db/schema";
-import { searchQboEntityListViaMcp } from "@/server/mcp/qbo-entity-search";
+import "server-only"
+import type { clients } from "@/server/db/schema"
+import { searchQboEntityListViaMcp } from "@/server/mcp/qbo-entity-search"
 
-type ClientRow = typeof clients.$inferSelect;
+type ClientRow = typeof clients.$inferSelect
 
 /**
  * Search a QuickBooks entity list for a given client.
@@ -16,5 +16,5 @@ export async function searchQboEntityList(
 	textFilter: string | undefined,
 	limit: number,
 ): Promise<unknown[]> {
-	return searchQboEntityListViaMcp(client, entityStem, textFilter, limit);
+	return searchQboEntityListViaMcp(client, entityStem, textFilter, limit)
 }

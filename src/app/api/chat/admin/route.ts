@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"
 
 export async function POST() {
 	return NextResponse.json(
@@ -7,5 +7,5 @@ export async function POST() {
 				"Admin chat streaming is not wired in this scaffold — add Vercel AI SDK per PLAN.md §10.",
 		},
 		{ status: 501 },
-	);
+	)
 }

@@ -1,8 +1,8 @@
-import { TRPCError } from "@trpc/server";
-import { z } from "zod";
-import { searchQboEntityList } from "@/server/qbo/entity-list-search";
-import { ensureClientInOrg } from "@/server/trpc/ensure-client-in-org";
-import { orgProcedure, router } from "../init";
+import { TRPCError } from "@trpc/server"
+import { z } from "zod"
+import { searchQboEntityList } from "@/server/qbo/entity-list-search"
+import { ensureClientInOrg } from "@/server/trpc/ensure-client-in-org"
+import { orgProcedure, router } from "../init"
 
 export const qboRouter = router({
 	searchProxy: orgProcedure
@@ -15,19 +15,19 @@ export const qboRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const client = await ensureClientInOrg(ctx.orgId, input.clientId);
+			const client = await ensureClientInOrg(ctx.orgId, input.clientId)
 			try {
 				const rows = await searchQboEntityList(
 					client,
 					input.entity,
 					input.query,
 					input.limit,
-				);
-				return z.object({ rows: z.unknown() }).parse({ rows });
+				)
+				return z.object({ rows: z.unknown() }).parse({ rows })
 			} catch (e) {
 				const message =
-					e instanceof Error ? e.message : "QuickBooks search failed";
-				throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+					e instanceof Error ? e.message : "QuickBooks search failed"
+				throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message })
 			}
 		}),
-});
+})

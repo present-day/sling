@@ -8,5 +8,5 @@ export default function AdminChatPage() {
 				Anthropic + allow-listed tools per PLAN.md §10.
 			</p>
 		</div>
-	);
+	)
 }

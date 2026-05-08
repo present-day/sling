@@ -1,13 +1,13 @@
-import { type CloseThresholds, closeThresholds } from "./thresholds";
-import type { Finding, FindingSeverity } from "./types";
-import type { VarianceReport, VarianceRow } from "./variance";
+import { type CloseThresholds, closeThresholds } from "./thresholds"
+import type { Finding, FindingSeverity } from "./types"
+import type { VarianceReport, VarianceRow } from "./variance"
 
 type DetectorContext = {
-	thresholds: CloseThresholds;
-	variance: VarianceReport;
-};
+	thresholds: CloseThresholds
+	variance: VarianceReport
+}
 
-type Detector = (ctx: DetectorContext) => Finding[];
+type Detector = (ctx: DetectorContext) => Finding[]
 
 function fingerprint(parts: (string | number)[]): string {
 	return parts
@@ -18,7 +18,7 @@ function fingerprint(parts: (string | number)[]): string {
 				.replace(/^-|-$/g, ""),
 		)
 		.join("_")
-		.slice(0, 96);
+		.slice(0, 96)
 }
 
 function severityFromDelta(
@@ -26,46 +26,46 @@ function severityFromDelta(
 	t: CloseThresholds,
 ): FindingSeverity {
 	if (Math.abs(absDelta) >= t.criticalAbs) {
-		return "critical";
+		return "critical"
 	}
-	return "warn";
+	return "warn"
 }
 
 function fmt(n: number | null): string {
 	if (n === null) {
-		return "—";
+		return "—"
 	}
-	const sign = n < 0 ? "-" : "";
-	const abs = Math.abs(n);
+	const sign = n < 0 ? "-" : ""
+	const abs = Math.abs(n)
 	return `${sign}$${abs.toLocaleString(undefined, {
 		minimumFractionDigits: 2,
 		maximumFractionDigits: 2,
-	})}`;
+	})}`
 }
 
 function fmtPct(n: number | null): string {
 	if (n === null) {
-		return "—";
+		return "—"
 	}
-	return `${n.toFixed(1)}%`;
+	return `${n.toFixed(1)}%`
 }
 
 /** Only data lines; skip section/summary/header rows. */
 function dataRows(v: VarianceReport): VarianceRow[] {
-	return v.rows.filter((r) => r.kind === "data");
+	return v.rows.filter((r) => r.kind === "data")
 }
 
 const materialVarianceDetector: Detector = ({ thresholds, variance }) => {
-	const out: Finding[] = [];
+	const out: Finding[] = []
 	for (const row of dataRows(variance)) {
 		if (row.absDelta === null || row.pctDelta === null) {
-			continue;
+			continue
 		}
 		if (row.isNewInCurrent || row.isMissingInCurrent) {
-			continue;
+			continue
 		}
-		const abs = Math.abs(row.absDelta);
-		const pct = Math.abs(row.pctDelta);
+		const abs = Math.abs(row.absDelta)
+		const pct = Math.abs(row.pctDelta)
 		if (abs >= thresholds.materialAbs && pct >= thresholds.materialPct) {
 			out.push({
 				id: `material_${fingerprint([row.path, row.absDelta.toFixed(0)])}`,
@@ -82,20 +82,20 @@ const materialVarianceDetector: Detector = ({ thresholds, variance }) => {
 				},
 				affectedLinePaths: [row.path],
 				suggestedAction: `Review ${row.label} postings for the period to confirm the movement is expected.`,
-			});
+			})
 		}
 	}
-	return out;
-};
+	return out
+}
 
 const newLineDetector: Detector = ({ thresholds, variance }) => {
-	const out: Finding[] = [];
+	const out: Finding[] = []
 	for (const row of dataRows(variance)) {
 		if (!row.isNewInCurrent || row.current === null) {
-			continue;
+			continue
 		}
 		if (Math.abs(row.current) < thresholds.newLineMinAbs) {
-			continue;
+			continue
 		}
 		out.push({
 			id: `new_${fingerprint([row.path])}`,
@@ -112,25 +112,25 @@ const newLineDetector: Detector = ({ thresholds, variance }) => {
 			},
 			affectedLinePaths: [row.path],
 			suggestedAction: `Confirm ${row.label} is correctly mapped and not a miscoded duplicate of an existing account.`,
-		});
+		})
 	}
-	return out;
-};
+	return out
+}
 
 const missingRecurringDetector: Detector = ({ thresholds, variance }) => {
-	const out: Finding[] = [];
+	const out: Finding[] = []
 	for (const row of dataRows(variance)) {
-		const baseline = row.baseline;
+		const baseline = row.baseline
 		if (
 			baseline === null ||
 			Math.abs(baseline) < thresholds.missingRecurringMinAbs
 		) {
-			continue;
+			continue
 		}
 		const missing =
-			row.isMissingInCurrent || (row.current !== null && row.current === 0);
+			row.isMissingInCurrent || (row.current !== null && row.current === 0)
 		if (!missing) {
-			continue;
+			continue
 		}
 		out.push({
 			id: `missing_${fingerprint([row.path])}`,
@@ -147,26 +147,26 @@ const missingRecurringDetector: Detector = ({ thresholds, variance }) => {
 			},
 			affectedLinePaths: [row.path],
 			suggestedAction: `Check whether the ${row.label} entry was missed, paid under a different GL account, or genuinely paused.`,
-		});
+		})
 	}
-	return out;
-};
+	return out
+}
 
 const signFlipDetector: Detector = ({ variance }) => {
-	const out: Finding[] = [];
+	const out: Finding[] = []
 	for (const row of dataRows(variance)) {
 		if (row.current === null) {
-			continue;
+			continue
 		}
 		const isExpense =
 			row.bucket === "expense" ||
 			row.bucket === "cogs" ||
-			row.bucket === "other_expense";
-		const isIncome = row.bucket === "income" || row.bucket === "other_income";
+			row.bucket === "other_expense"
+		const isIncome = row.bucket === "income" || row.bucket === "other_income"
 		const flipped =
-			(isExpense && row.current < 0) || (isIncome && row.current < 0);
+			(isExpense && row.current < 0) || (isIncome && row.current < 0)
 		if (!flipped) {
-			continue;
+			continue
 		}
 		out.push({
 			id: `signflip_${fingerprint([row.path])}`,
@@ -185,21 +185,21 @@ const signFlipDetector: Detector = ({ variance }) => {
 			},
 			affectedLinePaths: [row.path],
 			suggestedAction: `Investigate the underlying transactions — a credit memo, refund, or reclass may have posted to the wrong side.`,
-		});
+		})
 	}
-	return out;
-};
+	return out
+}
 
 const grossMarginDriftDetector: Detector = ({ thresholds, variance }) => {
-	const { current, baseline } = variance.totals;
+	const { current, baseline } = variance.totals
 	if (current.income === 0 || baseline.income === 0) {
-		return [];
+		return []
 	}
-	const curGm = (current.grossProfit / current.income) * 100;
-	const baseGm = (baseline.grossProfit / baseline.income) * 100;
-	const drift = curGm - baseGm;
+	const curGm = (current.grossProfit / current.income) * 100
+	const baseGm = (baseline.grossProfit / baseline.income) * 100
+	const drift = curGm - baseGm
 	if (Math.abs(drift) < thresholds.grossMarginDriftPts) {
-		return [];
+		return []
 	}
 	return [
 		{
@@ -221,11 +221,11 @@ const grossMarginDriftDetector: Detector = ({ thresholds, variance }) => {
 			affectedLinePaths: [],
 			suggestedAction: `Compare COGS and Income lines together: is pricing shifting, mix shifting, or has a COGS category been miscoded into OpEx?`,
 		},
-	];
-};
+	]
+}
 
 const oneOffSpikeDetector: Detector = ({ thresholds, variance }) => {
-	const out: Finding[] = [];
+	const out: Finding[] = []
 	for (const row of dataRows(variance)) {
 		if (
 			row.current === null ||
@@ -234,13 +234,13 @@ const oneOffSpikeDetector: Detector = ({ thresholds, variance }) => {
 			row.isNewInCurrent ||
 			row.isMissingInCurrent
 		) {
-			continue;
+			continue
 		}
-		const ratio = row.current / row.baseline;
-		const meetsMultiplier = Math.abs(ratio) >= thresholds.oneOffMultiplier;
-		const meetsMinAbs = Math.abs(row.current) >= thresholds.oneOffMinAbs;
+		const ratio = row.current / row.baseline
+		const meetsMultiplier = Math.abs(ratio) >= thresholds.oneOffMultiplier
+		const meetsMinAbs = Math.abs(row.current) >= thresholds.oneOffMinAbs
 		if (!meetsMultiplier || !meetsMinAbs) {
-			continue;
+			continue
 		}
 		// Skip the ones already called out as merely material (they'd duplicate) —
 		// we only flag here if the multiplier is notably dramatic.
@@ -248,7 +248,7 @@ const oneOffSpikeDetector: Detector = ({ thresholds, variance }) => {
 			ratio < thresholds.oneOffMultiplier * 1.5 &&
 			ratio > -thresholds.oneOffMultiplier * 1.5
 		) {
-			continue;
+			continue
 		}
 		out.push({
 			id: `oneoff_${fingerprint([row.path])}`,
@@ -266,10 +266,10 @@ const oneOffSpikeDetector: Detector = ({ thresholds, variance }) => {
 			},
 			affectedLinePaths: [row.path],
 			suggestedAction: `Open the ${row.label} transactions this period — is there a one-time charge that should be reclassified or accrued differently?`,
-		});
+		})
 	}
-	return out;
-};
+	return out
+}
 
 export const detectors: Detector[] = [
 	materialVarianceDetector,
@@ -278,7 +278,7 @@ export const detectors: Detector[] = [
 	signFlipDetector,
 	grossMarginDriftDetector,
 	oneOffSpikeDetector,
-];
+]
 
 /**
  * Run every detector against a variance report and return a deduplicated,
@@ -288,11 +288,11 @@ export function runDetectors(
 	variance: VarianceReport,
 	thresholds: CloseThresholds = closeThresholds,
 ): Finding[] {
-	const seen = new Map<string, Finding>();
+	const seen = new Map<string, Finding>()
 	for (const d of detectors) {
 		for (const finding of d({ thresholds, variance })) {
 			if (!seen.has(finding.id)) {
-				seen.set(finding.id, finding);
+				seen.set(finding.id, finding)
 			}
 		}
 	}
@@ -300,14 +300,14 @@ export function runDetectors(
 		critical: 0,
 		warn: 1,
 		info: 2,
-	};
+	}
 	return [...seen.values()].sort((a, b) => {
-		const s = severityRank[a.severity] - severityRank[b.severity];
+		const s = severityRank[a.severity] - severityRank[b.severity]
 		if (s !== 0) {
-			return s;
+			return s
 		}
 		return (
 			Math.abs(b.evidence.absDelta ?? 0) - Math.abs(a.evidence.absDelta ?? 0)
-		);
-	});
+		)
+	})
 }
