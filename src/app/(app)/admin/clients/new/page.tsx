@@ -1,11 +1,11 @@
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button"
 
 export default async function AdminNewClientPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ error?: string }>;
+	searchParams: Promise<{ error?: string }>
 }) {
-	const sp = await searchParams;
+	const sp = await searchParams
 	return (
 		<div className="mx-auto max-w-lg space-y-4">
 			<h1 className="font-heading text-2xl font-semibold">
@@ -25,5 +25,5 @@ export default async function AdminNewClientPage({
 				Connect with Intuit
 			</a>
 		</div>
-	);
+	)
 }

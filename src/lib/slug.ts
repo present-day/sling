@@ -3,6 +3,6 @@ export function slugify(input: string): string {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "")
-		.slice(0, 48);
-	return s.length > 0 ? s : "org";
+		.slice(0, 48)
+	return s.length > 0 ? s : "org"
 }

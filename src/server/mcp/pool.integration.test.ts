@@ -19,7 +19,7 @@
  */
 /** biome-ignore-all lint/style/noNonNullAssertion: testing only */
 
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest"
 
 // ── Hoist mocks before any module under test is imported ────────────────────
 
@@ -32,7 +32,7 @@ vi.mock("@/server/db/client", () => ({
 			}),
 		}),
 	},
-}));
+}))
 
 // getEnv() validates the entire app env; pull only what the pool needs from
 // the process env rather than requiring every Next.js var to be set.
@@ -44,7 +44,7 @@ vi.mock("@/lib/env", () => ({
 			process.env.QUICKBOOKS_REDIRECT_URI ??
 			"http://localhost:3000/api/qbo/oauth/callback",
 	}),
-}));
+}))
 
 // Pass the refresh token through as plain text so the test doesn't need
 // TOKEN_ENCRYPTION_KEY. The pool calls decryptRefreshToken on the row value
@@ -52,11 +52,11 @@ vi.mock("@/lib/env", () => ({
 vi.mock("@/server/qbo/tokens", () => ({
 	decryptRefreshToken: (v: string) => v,
 	encryptRefreshToken: (v: string) => v,
-}));
+}))
 
 // ── Imports (after mocks are registered) ────────────────────────────────────
 
-import { callQboTool, drainPool } from "./pool";
+import { callQboTool, drainPool } from "./pool"
 
 // ── Guard ────────────────────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ const hasCredentials =
 	!!process.env.QUICKBOOKS_CLIENT_ID &&
 	!!process.env.QUICKBOOKS_CLIENT_SECRET &&
 	!!process.env.QUICKBOOKS_REFRESH_TOKEN &&
-	!!process.env.QUICKBOOKS_REALM_ID;
+	!!process.env.QUICKBOOKS_REALM_ID
 
 // ── Test ─────────────────────────────────────────────────────────────────────
 
@@ -84,24 +84,24 @@ describe.skipIf(!hasCredentials)(
 			encryptedRefreshToken: process.env.QUICKBOOKS_REFRESH_TOKEN!,
 			tokenUpdatedAt: new Date(),
 			createdAt: new Date(),
-		};
+		}
 
 		afterAll(async () => {
-			await drainPool();
-		});
+			await drainPool()
+		})
 
 		it("spawns the MCP child and returns a result from get_company_info", async () => {
 			const result = await callQboTool(clientRow, "get_company_info", {
 				company_id: undefined,
-			});
+			})
 
 			// The MCP protocol wraps results in { content: [...] }
-			expect(result).toBeDefined();
-			expect(result).toHaveProperty("content");
+			expect(result).toBeDefined()
+			expect(result).toHaveProperty("content")
 
-			const content = (result as { content: unknown[] }).content;
-			expect(Array.isArray(content)).toBe(true);
-			expect(content.length).toBeGreaterThan(0);
+			const content = (result as { content: unknown[] }).content
+			expect(Array.isArray(content)).toBe(true)
+			expect(content.length).toBeGreaterThan(0)
 
 			// At least one content item should contain company info text
 			const text = content
@@ -110,21 +110,21 @@ describe.skipIf(!hasCredentials)(
 						typeof (c as Record<string, unknown>).text === "string",
 				)
 				.map((c) => c.text)
-				.join("\n");
+				.join("\n")
 
-			expect(text.length).toBeGreaterThan(0);
-			console.log("[smoke] get_company_info response:", text.slice(0, 200));
-		}, 15_000); // QB API can be slow — 15 s timeout
+			expect(text.length).toBeGreaterThan(0)
+			console.log("[smoke] get_company_info response:", text.slice(0, 200))
+		}, 15_000) // QB API can be slow — 15 s timeout
 
 		it("reuses the same child process on a second call (pool hit)", async () => {
 			// Both calls should succeed and return without spawning a new process.
 			const [r1, r2] = await Promise.all([
 				callQboTool(clientRow, "get_company_info", { company_id: undefined }),
 				callQboTool(clientRow, "get_company_info", { company_id: undefined }),
-			]);
+			])
 
-			expect(r1).toHaveProperty("content");
-			expect(r2).toHaveProperty("content");
-		}, 15_000);
+			expect(r1).toHaveProperty("content")
+			expect(r2).toHaveProperty("content")
+		}, 15_000)
 	},
-);
+)

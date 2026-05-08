@@ -1,39 +1,39 @@
-import "server-only";
-import type { ChildProcess } from "node:child_process";
-import path from "node:path";
-import { createInterface } from "node:readline";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { eq } from "drizzle-orm";
-import { getEnv } from "@/lib/env";
-import { db } from "@/server/db/client";
-import { clients } from "@/server/db/schema";
-import { decryptRefreshToken, encryptRefreshToken } from "@/server/qbo/tokens";
+import "server-only"
+import type { ChildProcess } from "node:child_process"
+import path from "node:path"
+import { createInterface } from "node:readline"
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
+import { eq } from "drizzle-orm"
+import { getEnv } from "@/lib/env"
+import { db } from "@/server/db/client"
+import { clients } from "@/server/db/schema"
+import { decryptRefreshToken, encryptRefreshToken } from "@/server/qbo/tokens"
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // evict child after 5 min idle
-const CALL_TIMEOUT_MS = 30 * 1000; // max time for a single tool call
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000 // evict child after 5 min idle
+const CALL_TIMEOUT_MS = 30 * 1000 // max time for a single tool call
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type ClientRow = typeof clients.$inferSelect;
+type ClientRow = typeof clients.$inferSelect
 
 interface PoolEntry {
-	mcpClient: Client;
-	transport: StdioClientTransport;
-	idleTimer: ReturnType<typeof setTimeout>;
+	mcpClient: Client
+	transport: StdioClientTransport
+	idleTimer: ReturnType<typeof setTimeout>
 }
 
 // ---------------------------------------------------------------------------
 // Module-level pool — one stdio child process per clientId
 // ---------------------------------------------------------------------------
 
-const pool = new Map<string, PoolEntry>();
+const pool = new Map<string, PoolEntry>()
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,20 +52,20 @@ function serverPath(): string {
 	return (
 		process.env.MCP_QBO_SERVER_PATH ??
 		path.resolve(process.cwd(), "../quickbooks-mcp/dist/index.js")
-	);
+	)
 }
 
 function resetIdleTimer(clientId: string, entry: PoolEntry): void {
-	clearTimeout(entry.idleTimer);
-	entry.idleTimer = setTimeout(() => void evict(clientId), IDLE_TIMEOUT_MS);
+	clearTimeout(entry.idleTimer)
+	entry.idleTimer = setTimeout(() => void evict(clientId), IDLE_TIMEOUT_MS)
 }
 
 async function evict(clientId: string): Promise<void> {
-	const entry = pool.get(clientId);
-	if (!entry) return;
-	pool.delete(clientId);
+	const entry = pool.get(clientId)
+	if (!entry) return
+	pool.delete(clientId)
 	try {
-		await entry.mcpClient.close();
+		await entry.mcpClient.close()
 	} catch {
 		// Best-effort: child may already be gone
 	}
@@ -82,14 +82,14 @@ async function evict(clientId: string): Promise<void> {
  * Non-JSON lines (ordinary log output) are silently ignored.
  */
 function watchStderr(stderr: NodeJS.ReadableStream, clientId: string): void {
-	const rl = createInterface({ input: stderr, crlfDelay: Infinity });
+	const rl = createInterface({ input: stderr, crlfDelay: Infinity })
 
 	rl.on("line", (line) => {
-		let parsed: unknown;
+		let parsed: unknown
 		try {
-			parsed = JSON.parse(line);
+			parsed = JSON.parse(line)
 		} catch {
-			return; // plain log line — ignore
+			return // plain log line — ignore
 		}
 
 		if (
@@ -97,11 +97,11 @@ function watchStderr(stderr: NodeJS.ReadableStream, clientId: string): void {
 			parsed === null ||
 			(parsed as Record<string, unknown>).zerocool_event !== "token_rotated"
 		) {
-			return;
+			return
 		}
 
-		const { refreshToken } = parsed as { refreshToken?: string };
-		if (!refreshToken) return;
+		const { refreshToken } = parsed as { refreshToken?: string }
+		if (!refreshToken) return
 
 		void (async () => {
 			try {
@@ -111,20 +111,20 @@ function watchStderr(stderr: NodeJS.ReadableStream, clientId: string): void {
 						encryptedRefreshToken: encryptRefreshToken(refreshToken),
 						tokenUpdatedAt: new Date(),
 					})
-					.where(eq(clients.id, clientId));
+					.where(eq(clients.id, clientId))
 			} catch (err) {
 				console.error(
 					`[mcp-pool] failed to persist rotated token for client ${clientId}:`,
 					err,
-				);
+				)
 			}
-		})();
-	});
+		})()
+	})
 }
 
 async function spawnEntry(clientRow: ClientRow): Promise<PoolEntry> {
-	const env = getEnv();
-	const refreshToken = decryptRefreshToken(clientRow.encryptedRefreshToken);
+	const env = getEnv()
+	const refreshToken = decryptRefreshToken(clientRow.encryptedRefreshToken)
 
 	const spawnEnv: Record<string, string> = {
 		// Inherit parent env so Node.js, PATH, etc. are available in the child
@@ -139,7 +139,7 @@ async function spawnEntry(clientRow: ClientRow): Promise<PoolEntry> {
 		// Signal to the MCP server that tokens are managed externally —
 		// suppresses .env file writes and enables stderr token rotation events
 		QUICKBOOKS_TOKEN_MANAGED: "true",
-	};
+	}
 
 	const transport = new StdioClientTransport({
 		command: "node",
@@ -148,42 +148,42 @@ async function spawnEntry(clientRow: ClientRow): Promise<PoolEntry> {
 		// Pipe stderr so we can parse token rotation events; without this it
 		// inherits the parent process's stderr and we cannot intercept it.
 		stderr: "pipe",
-	});
+	})
 
 	const mcpClient = new Client(
 		{ name: "zerocool-console", version: "1.0.0" },
 		{ capabilities: {} },
-	);
+	)
 
-	await mcpClient.connect(transport);
+	await mcpClient.connect(transport)
 
 	// _process is set during transport.start(), which connect() calls.
 	// We cast through unknown because _process is a private field on the SDK
 	// class — it is reliably present after connect() resolves.
-	const proc = (transport as unknown as { _process?: ChildProcess })._process;
+	const proc = (transport as unknown as { _process?: ChildProcess })._process
 
 	if (proc?.stderr) {
-		watchStderr(proc.stderr, clientRow.id);
+		watchStderr(proc.stderr, clientRow.id)
 	}
 
 	const entry: PoolEntry = {
 		mcpClient,
 		transport,
 		idleTimer: setTimeout(() => void evict(clientRow.id), IDLE_TIMEOUT_MS),
-	};
+	}
 
-	return entry;
+	return entry
 }
 
 async function getOrSpawn(clientRow: ClientRow): Promise<PoolEntry> {
-	const existing = pool.get(clientRow.id);
+	const existing = pool.get(clientRow.id)
 	if (existing) {
-		resetIdleTimer(clientRow.id, existing);
-		return existing;
+		resetIdleTimer(clientRow.id, existing)
+		return existing
 	}
-	const entry = await spawnEntry(clientRow);
-	pool.set(clientRow.id, entry);
-	return entry;
+	const entry = await spawnEntry(clientRow)
+	pool.set(clientRow.id, entry)
+	return entry
 }
 
 // ---------------------------------------------------------------------------
@@ -205,8 +205,8 @@ export async function callQboTool(
 	toolName: string,
 	args: Record<string, unknown>,
 ): Promise<unknown> {
-	const entry = await getOrSpawn(clientRow);
-	resetIdleTimer(clientRow.id, entry);
+	const entry = await getOrSpawn(clientRow)
+	resetIdleTimer(clientRow.id, entry)
 
 	// All quickbooks-mcp tools are registered via RegisterTool() which wraps
 	// the schema as { params: toolSchema }. Callers pass natural args; we wrap.
@@ -223,7 +223,7 @@ export async function callQboTool(
 				CALL_TIMEOUT_MS,
 			),
 		),
-	]);
+	])
 }
 
 /**
@@ -231,5 +231,5 @@ export async function callQboTool(
  * Useful for graceful shutdown and test teardown.
  */
 export async function drainPool(): Promise<void> {
-	await Promise.allSettled([...pool.keys()].map(evict));
+	await Promise.allSettled([...pool.keys()].map(evict))
 }

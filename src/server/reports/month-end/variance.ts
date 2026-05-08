@@ -1,41 +1,41 @@
-import type { PnlLine, PnlLineKind } from "@/server/qbo/profit-and-loss";
-import { type AlignedLine, alignLines, classifyBucket } from "./align";
-import type { Baseline } from "./types";
+import type { PnlLine, PnlLineKind } from "@/server/qbo/profit-and-loss"
+import { type AlignedLine, alignLines, classifyBucket } from "./align"
+import type { Baseline } from "./types"
 
 export type VarianceRow = {
-	path: string;
-	label: string;
-	kind: PnlLineKind;
-	bucket: ReturnType<typeof classifyBucket>;
-	current: number | null;
-	baseline: number | null;
-	absDelta: number | null;
-	pctDelta: number | null;
+	path: string
+	label: string
+	kind: PnlLineKind
+	bucket: ReturnType<typeof classifyBucket>
+	current: number | null
+	baseline: number | null
+	absDelta: number | null
+	pctDelta: number | null
 	/** `true` when this path exists in current but not baseline (or vice versa). */
-	isNewInCurrent: boolean;
-	isMissingInCurrent: boolean;
-};
+	isNewInCurrent: boolean
+	isMissingInCurrent: boolean
+}
 
 export type VarianceReport = {
-	baselineId: string;
-	rows: VarianceRow[];
+	baselineId: string
+	rows: VarianceRow[]
 	/** Summary totals computed by bucket for quick top-line figures. */
 	totals: {
-		current: BucketTotals;
-		baseline: BucketTotals;
-	};
-};
+		current: BucketTotals
+		baseline: BucketTotals
+	}
+}
 
 export type BucketTotals = {
-	income: number;
-	cogs: number;
-	grossProfit: number;
-	expense: number;
-	netOperating: number;
-	otherIncome: number;
-	otherExpense: number;
-	netIncome: number;
-};
+	income: number
+	cogs: number
+	grossProfit: number
+	expense: number
+	netOperating: number
+	otherIncome: number
+	otherExpense: number
+	netIncome: number
+}
 
 function sumDataLinesByBucket(aligned: AlignedLine[]): BucketTotals {
 	const t: BucketTotals = {
@@ -47,28 +47,28 @@ function sumDataLinesByBucket(aligned: AlignedLine[]): BucketTotals {
 		otherIncome: 0,
 		otherExpense: 0,
 		netIncome: 0,
-	};
+	}
 	for (const line of aligned) {
 		if (line.kind !== "data" || line.value === null) {
-			continue;
+			continue
 		}
-		const bucket = classifyBucket(line);
+		const bucket = classifyBucket(line)
 		if (bucket === "income") {
-			t.income += line.value;
+			t.income += line.value
 		} else if (bucket === "cogs") {
-			t.cogs += line.value;
+			t.cogs += line.value
 		} else if (bucket === "expense") {
-			t.expense += line.value;
+			t.expense += line.value
 		} else if (bucket === "other_income") {
-			t.otherIncome += line.value;
+			t.otherIncome += line.value
 		} else if (bucket === "other_expense") {
-			t.otherExpense += line.value;
+			t.otherExpense += line.value
 		}
 	}
-	t.grossProfit = t.income - t.cogs;
-	t.netOperating = t.grossProfit - t.expense;
-	t.netIncome = t.netOperating + t.otherIncome - t.otherExpense;
-	return t;
+	t.grossProfit = t.income - t.cogs
+	t.netOperating = t.grossProfit - t.expense
+	t.netIncome = t.netOperating + t.otherIncome - t.otherExpense
+	return t
 }
 
 function pctDelta(
@@ -76,12 +76,12 @@ function pctDelta(
 	baseline: number | null,
 ): number | null {
 	if (current === null || baseline === null) {
-		return null;
+		return null
 	}
 	if (baseline === 0) {
-		return current === 0 ? 0 : null;
+		return current === 0 ? 0 : null
 	}
-	return ((current - baseline) / Math.abs(baseline)) * 100;
+	return ((current - baseline) / Math.abs(baseline)) * 100
 }
 
 /**
@@ -91,26 +91,26 @@ export function computeVariance(
 	current: PnlLine[],
 	baseline: Baseline,
 ): VarianceReport {
-	const alignedCurrent = alignLines(current);
-	const alignedBaseline = alignLines(baseline.lines);
+	const alignedCurrent = alignLines(current)
+	const alignedBaseline = alignLines(baseline.lines)
 
-	const byPath = new Map<string, { c?: AlignedLine; b?: AlignedLine }>();
+	const byPath = new Map<string, { c?: AlignedLine; b?: AlignedLine }>()
 	for (const line of alignedCurrent) {
-		byPath.set(line.path, { ...byPath.get(line.path), c: line });
+		byPath.set(line.path, { ...byPath.get(line.path), c: line })
 	}
 	for (const line of alignedBaseline) {
-		byPath.set(line.path, { ...byPath.get(line.path), b: line });
+		byPath.set(line.path, { ...byPath.get(line.path), b: line })
 	}
 
-	const rows: VarianceRow[] = [];
+	const rows: VarianceRow[] = []
 	for (const [path, pair] of byPath) {
-		const anchor = pair.c ?? pair.b;
+		const anchor = pair.c ?? pair.b
 		if (!anchor) {
-			continue;
+			continue
 		}
-		const cur = pair.c?.value ?? null;
-		const base = pair.b?.value ?? null;
-		const abs = cur !== null && base !== null ? cur - base : null;
+		const cur = pair.c?.value ?? null
+		const base = pair.b?.value ?? null
+		const abs = cur !== null && base !== null ? cur - base : null
 		rows.push({
 			path,
 			label: anchor.label,
@@ -122,7 +122,7 @@ export function computeVariance(
 			pctDelta: pctDelta(cur, base),
 			isNewInCurrent: Boolean(pair.c) && !pair.b,
 			isMissingInCurrent: !pair.c && Boolean(pair.b),
-		});
+		})
 	}
 
 	return {
@@ -132,5 +132,5 @@ export function computeVariance(
 			current: sumDataLinesByBucket(alignedCurrent),
 			baseline: sumDataLinesByBucket(alignedBaseline),
 		},
-	};
+	}
 }

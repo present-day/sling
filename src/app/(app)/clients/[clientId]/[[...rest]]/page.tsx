@@ -1,23 +1,23 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ProfitLossReport } from "@/components/reports/profit-loss-report";
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ENTITY_SEARCH } from "@/lib/entity-search";
-import { reportNav } from "@/lib/nav";
-import { trpc } from "@/trpc/react";
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { ProfitLossReport } from "@/components/reports/profit-loss-report"
+import { buttonVariants } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ENTITY_SEARCH } from "@/lib/entity-search"
+import { reportNav } from "@/lib/nav"
+import { trpc } from "@/trpc/react"
 
 export default function ClientWorkspacePage() {
-	const params = useParams<{ clientId: string; rest?: string[] }>();
-	const clientId = params.clientId;
-	const rest = params.rest ?? [];
-	const segment = rest[0] ?? "overview";
-	const sub = rest.slice(1);
+	const params = useParams<{ clientId: string; rest?: string[] }>()
+	const clientId = params.clientId
+	const rest = params.rest ?? []
+	const segment = rest[0] ?? "overview"
+	const sub = rest.slice(1)
 
-	const clientQuery = trpc.clients.get.useQuery({ clientId });
-	const entityStem = ENTITY_SEARCH[segment];
+	const clientQuery = trpc.clients.get.useQuery({ clientId })
+	const entityStem = ENTITY_SEARCH[segment]
 	const searchQuery = trpc.qbo.searchProxy.useQuery(
 		{
 			clientId,
@@ -26,20 +26,20 @@ export default function ClientWorkspacePage() {
 			limit: 25,
 		},
 		{ enabled: Boolean(entityStem) },
-	);
+	)
 	const reportsQuery = trpc.reports.list.useQuery(undefined, {
 		enabled: segment === "reports" && sub.length === 0,
-	});
+	})
 
 	if (clientQuery.isLoading) {
-		return <p className="text-muted-foreground text-sm">Loading client…</p>;
+		return <p className="text-muted-foreground text-sm">Loading client…</p>
 	}
 	if (clientQuery.error || !clientQuery.data) {
 		return (
 			<p className="text-destructive text-sm">
 				{clientQuery.error?.message ?? "Client not found"}
 			</p>
-		);
+		)
 	}
 
 	if (segment === "overview") {
@@ -63,7 +63,7 @@ export default function ClientWorkspacePage() {
 					</CardContent>
 				</Card>
 			</div>
-		);
+		)
 	}
 
 	if (segment === "chat") {
@@ -76,7 +76,7 @@ export default function ClientWorkspacePage() {
 					.
 				</p>
 			</div>
-		);
+		)
 	}
 
 	if (segment === "reports" && sub.length === 0) {
@@ -99,7 +99,7 @@ export default function ClientWorkspacePage() {
 					</div>
 				)}
 			</div>
-		);
+		)
 	}
 
 	if (segment === "reports" && sub[0] === "profit-loss") {
@@ -108,7 +108,7 @@ export default function ClientWorkspacePage() {
 				<h1 className="font-heading text-2xl font-semibold">Reports</h1>
 				<ProfitLossReport clientId={clientId} />
 			</div>
-		);
+		)
 	}
 
 	if (segment === "reports" && sub[0]) {
@@ -125,7 +125,7 @@ export default function ClientWorkspacePage() {
 					· PDF/XLSX via matching API routes.
 				</p>
 			</div>
-		);
+		)
 	}
 
 	if (entityStem) {
@@ -146,7 +146,7 @@ export default function ClientWorkspacePage() {
 					</pre>
 				)}
 			</div>
-		);
+		)
 	}
 
 	return (
@@ -156,5 +156,5 @@ export default function ClientWorkspacePage() {
 				This section is not mapped to a QuickBooks list view yet.
 			</p>
 		</div>
-	);
+	)
 }

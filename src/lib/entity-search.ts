@@ -21,7 +21,7 @@ export const ENTITY_SEARCH: Record<string, string> = {
 	accounts: "accounts",
 	classes: "classes",
 	departments: "departments",
-};
+}
 
 /** Intuit query language entity name for each stem (e.g. `Customer`, `BillPayment`). */
 export const ENTITY_QBO_QUERY_ENTITY: Record<string, string> = {
@@ -46,7 +46,7 @@ export const ENTITY_QBO_QUERY_ENTITY: Record<string, string> = {
 	accounts: "Account",
 	classes: "Class",
 	departments: "Department",
-};
+}
 
 /** Field used for optional text filter in `qbo.searchProxy` (Intuit query `where … like`). */
 export const ENTITY_SEARCH_QUERY_KEY: Record<string, string> = {
@@ -70,4 +70,4 @@ export const ENTITY_SEARCH_QUERY_KEY: Record<string, string> = {
 	departments: "Name",
 	bill_payments: "DocNumber",
 	time_activities: "Name",
-};
+}

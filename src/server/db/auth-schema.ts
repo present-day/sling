@@ -1,11 +1,11 @@
-import { relations, sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm"
 import {
 	index,
 	integer,
 	sqliteTable,
 	text,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/sqlite-core"
 
 export const user = sqliteTable("user", {
 	id: text("id").primaryKey(),
@@ -22,7 +22,7 @@ export const user = sqliteTable("user", {
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
-});
+})
 
 export const session = sqliteTable(
 	"session",
@@ -44,7 +44,7 @@ export const session = sqliteTable(
 		activeOrganizationId: text("active_organization_id"),
 	},
 	(table) => [index("session_userId_idx").on(table.userId)],
-);
+)
 
 export const account = sqliteTable(
 	"account",
@@ -74,7 +74,7 @@ export const account = sqliteTable(
 			.notNull(),
 	},
 	(table) => [index("account_userId_idx").on(table.userId)],
-);
+)
 
 export const verification = sqliteTable(
 	"verification",
@@ -92,7 +92,7 @@ export const verification = sqliteTable(
 			.notNull(),
 	},
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
-);
+)
 
 export const organization = sqliteTable(
 	"organization",
@@ -105,7 +105,7 @@ export const organization = sqliteTable(
 		metadata: text("metadata"),
 	},
 	(table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
-);
+)
 
 export const member = sqliteTable(
 	"member",
@@ -124,7 +124,7 @@ export const member = sqliteTable(
 		index("member_organizationId_idx").on(table.organizationId),
 		index("member_userId_idx").on(table.userId),
 	],
-);
+)
 
 export const invitation = sqliteTable(
 	"invitation",
@@ -148,33 +148,33 @@ export const invitation = sqliteTable(
 		index("invitation_organizationId_idx").on(table.organizationId),
 		index("invitation_email_idx").on(table.email),
 	],
-);
+)
 
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),
 	accounts: many(account),
 	members: many(member),
 	invitations: many(invitation),
-}));
+}))
 
 export const sessionRelations = relations(session, ({ one }) => ({
 	user: one(user, {
 		fields: [session.userId],
 		references: [user.id],
 	}),
-}));
+}))
 
 export const accountRelations = relations(account, ({ one }) => ({
 	user: one(user, {
 		fields: [account.userId],
 		references: [user.id],
 	}),
-}));
+}))
 
 export const organizationRelations = relations(organization, ({ many }) => ({
 	members: many(member),
 	invitations: many(invitation),
-}));
+}))
 
 export const memberRelations = relations(member, ({ one }) => ({
 	organization: one(organization, {
@@ -185,7 +185,7 @@ export const memberRelations = relations(member, ({ one }) => ({
 		fields: [member.userId],
 		references: [user.id],
 	}),
-}));
+}))
 
 export const invitationRelations = relations(invitation, ({ one }) => ({
 	organization: one(organization, {
@@ -196,4 +196,4 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
 		fields: [invitation.inviterId],
 		references: [user.id],
 	}),
-}));
+}))
