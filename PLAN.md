@@ -5,6 +5,8 @@
 > **Goal of this doc:** A single, self-contained spec Claude Code can execute top-to-bottom to deliver a runnable MVP on Joe's local machine, connected to his Intuit Sandbox.
 
 > **Note (implementation, April 2026):** The QuickBooks MCP server is **not** vendored in this monorepo anymore. Runtime integration uses the **Accounting API** directly (`apps/console/src/server/qbo/`). Sections below that describe `src/server/mcp/pool.ts`, `MCP_QBO_SERVER_PATH`, or in-app Tool Explorer are **obsolete**; keep an MCP checkout elsewhere for Cursor-only discovery if you want.
+>
+> **Note (strategy, May 2026):** Intuit + Anthropic announced a direct partnership ([intuit.com/anthropic/](https://www.intuit.com/anthropic/)). QuickBooks, TurboTax, Credit Karma, and Mailchimp now ship as **first-party MCP integrations inside Claude** — individual QBO orgs can already "ask Claude about my books" with no third party. This re-frames Sling's wedge: **drop the "talk to your books in Claude" framing**; lead with **multi-client bookkeeper cockpit + AI document ingestion** (drag-drop classifier, scoped per-tab chat). The Sling-as-MCP-server track (issues #33–#44) stays — its differentiator is now multi-org / multi-client / write-confirmation gates, not the existence of MCP itself. Marketplace listing via the Intuit App Partner Program is a post-MVP track (separate discovery issue). This whole document is being rewritten for the cockpit pivot in #20; this note is a placeholder until that lands.
 
 ---
 
