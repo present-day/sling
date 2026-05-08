@@ -18,6 +18,12 @@ export type DropZoneState =
 			fileName: string
 	  }
 	| {
+			status: "committing"
+			uploadId: string
+			entityKind: string
+			fileName: string
+	  }
+	| {
 			status: "chosen"
 			uploadId: string
 			entityKind: string

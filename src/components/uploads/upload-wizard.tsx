@@ -25,6 +25,7 @@ type WizardOpen = Exclude<DropZoneState["status"], "idle" | "dragging">
 const OPEN_STATUSES: readonly WizardOpen[] = [
 	"classifying",
 	"choosing",
+	"committing",
 	"chosen",
 	"error",
 ] as const
@@ -59,7 +60,11 @@ export function UploadWizard({
 					<WizardBody state={state} onChoose={onChoose} />
 				</div>
 				<SheetFooter className="border-t border-border-subtle">
-					<Button variant="outline" onClick={onDismiss}>
+					<Button
+						variant="outline"
+						onClick={onDismiss}
+						disabled={state.status === "committing"}
+					>
 						{state.status === "chosen" ? "Done" : "Cancel"}
 					</Button>
 				</SheetFooter>
@@ -74,6 +79,8 @@ function titleFor(state: DropZoneState): string {
 			return "Classifying…"
 		case "choosing":
 			return "Confirm what to file"
+		case "committing":
+			return "Filing…"
 		case "chosen":
 			return "Filed"
 		case "error":
@@ -89,6 +96,8 @@ function descriptionFor(state: DropZoneState): string {
 			return state.fileName
 		case "choosing":
 			return `${state.fileName} · pick the QuickBooks entity to file as`
+		case "committing":
+			return `${state.fileName} · ${state.entityKind}`
 		case "chosen":
 			return `${state.fileName} · ${state.entityKind}`
 		case "error":
@@ -137,6 +146,16 @@ function WizardBody({
 			</div>
 		)
 	}
+	if (state.status === "committing") {
+		return (
+			<div className="flex flex-col gap-3">
+				<div className="flex items-center gap-2 text-sm text-ink-muted">
+					<Loader2Icon className="size-4 animate-spin" />
+					Recording {state.entityKind} for {state.fileName}…
+				</div>
+			</div>
+		)
+	}
 	if (state.status === "chosen") {
 		return (
 			<div className="flex flex-col gap-3">
@@ -147,9 +166,9 @@ function WizardBody({
 							{state.entityKind} chosen for {state.fileName}.
 						</p>
 						<p className="text-ink-muted">
-							The translator that turns the extracted fields into a real
-							QuickBooks entity is wired in #11 (Sales) and #12 (Purchases /
-							Banking). For now the upload is recorded and tagged.
+							The upload has been recorded and tagged. Full entity creation in
+							QuickBooks lands with the Sales and Purchases / Banking
+							translators.
 						</p>
 					</div>
 				</div>
