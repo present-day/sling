@@ -1,19 +1,19 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { authClient } from "@/lib/auth-client";
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { authClient } from "@/lib/auth-client"
 
 export default function SignInPage() {
-	const router = useRouter();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const [pending, setPending] = useState(false);
+	const router = useRouter()
+	const [email, setEmail] = useState("")
+	const [password, setPassword] = useState("")
+	const [error, setError] = useState<string | null>(null)
+	const [pending, setPending] = useState(false)
 
 	return (
 		<div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
@@ -26,17 +26,17 @@ export default function SignInPage() {
 			<form
 				className="flex flex-col gap-4"
 				onSubmit={async (e) => {
-					e.preventDefault();
-					setPending(true);
-					setError(null);
-					const res = await authClient.signIn.email({ email, password });
-					setPending(false);
+					e.preventDefault()
+					setPending(true)
+					setError(null)
+					const res = await authClient.signIn.email({ email, password })
+					setPending(false)
 					if (res.error) {
-						setError(res.error.message ?? "Sign in failed");
-						return;
+						setError(res.error.message ?? "Sign in failed")
+						return
 					}
-					router.push("/dashboard");
-					router.refresh();
+					router.push("/dashboard")
+					router.refresh()
 				}}
 			>
 				<div className="space-y-2">
@@ -73,5 +73,5 @@ export default function SignInPage() {
 				</Link>
 			</p>
 		</div>
-	);
+	)
 }

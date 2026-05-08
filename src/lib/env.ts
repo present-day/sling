@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod"
 
 const envSchema = z
 	.object({
@@ -25,9 +25,9 @@ const envSchema = z
 		QUICKBOOKS_REDIRECT_URI:
 			d.QUICKBOOKS_REDIRECT_URI?.trim() ||
 			new URL("/api/qbo/oauth/callback", d.NEXT_PUBLIC_APP_URL).href,
-	}));
+	}))
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = z.infer<typeof envSchema>
 
 function buildPlaceholderEnv(): Env {
 	return {
@@ -43,17 +43,17 @@ function buildPlaceholderEnv(): Env {
 		QUICKBOOKS_DEFAULT_ENVIRONMENT: "sandbox",
 		ANTHROPIC_API_KEY: "placeholder",
 		PRESENT_DAY_LICENSE_PUBLIC_KEY: "placeholder",
-	};
+	}
 }
 
 export function getEnv(): Env {
 	if (process.env.SKIP_ENV_VALIDATION === "true") {
-		return buildPlaceholderEnv();
+		return buildPlaceholderEnv()
 	}
-	const parsed = envSchema.safeParse(process.env);
+	const parsed = envSchema.safeParse(process.env)
 	if (!parsed.success) {
-		console.error("Invalid environment:", parsed.error.flatten().fieldErrors);
-		throw new Error("Invalid environment variables");
+		console.error("Invalid environment:", parsed.error.flatten().fieldErrors)
+		throw new Error("Invalid environment variables")
 	}
-	return parsed.data;
+	return parsed.data
 }

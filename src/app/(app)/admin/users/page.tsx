@@ -7,5 +7,5 @@ export default function AdminUsersPage() {
 				plugin endpoints.
 			</p>
 		</div>
-	);
+	)
 }

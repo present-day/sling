@@ -1,11 +1,11 @@
-import { AppSidebar } from "./app-sidebar";
+import { AppSidebar } from "./app-sidebar"
 
 export function AppShell({
 	children,
 	productName,
 }: {
-	children: React.ReactNode;
-	productName?: string;
+	children: React.ReactNode
+	productName?: string
 }) {
 	return (
 		<div className="flex min-h-screen">
@@ -14,5 +14,5 @@ export function AppShell({
 				<main className="flex-1 p-6">{children}</main>
 			</div>
 		</div>
-	);
+	)
 }

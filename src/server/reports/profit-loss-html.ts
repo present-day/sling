@@ -1,55 +1,55 @@
-import "server-only";
+import "server-only"
 
-import type { PnlLine } from "@/server/qbo/profit-and-loss";
+import type { PnlLine } from "@/server/qbo/profit-and-loss"
 
 function escapeHtml(s: string): string {
 	return s
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
+		.replace(/"/g, "&quot;")
 }
 
 function padValues(values: string[], n: number): string[] {
-	const out = [...values];
+	const out = [...values]
 	while (out.length < n) {
-		out.push("");
+		out.push("")
 	}
-	return out.slice(0, n);
+	return out.slice(0, n)
 }
 
 export function buildProfitLossHtml(data: {
-	reportName: string;
-	period: { start: string; end: string };
-	currency?: string;
-	columns: { title: string }[];
-	lines: PnlLine[];
+	reportName: string
+	period: { start: string; end: string }
+	currency?: string
+	columns: { title: string }[]
+	lines: PnlLine[]
 }): string {
-	const { reportName, period, currency, columns, lines } = data;
-	const n = Math.max(1, columns.length);
+	const { reportName, period, currency, columns, lines } = data
+	const n = Math.max(1, columns.length)
 	const rows = lines
 		.map((line) => {
-			const indent = 8 + line.depth * 14;
+			const indent = 8 + line.depth * 14
 			const weight =
 				line.kind === "section" || line.kind === "summary"
 					? "font-weight:600"
-					: "font-weight:400";
-			const vals = padValues(line.values, n);
+					: "font-weight:400"
+			const vals = padValues(line.values, n)
 			const cells = vals
 				.map(
 					(v) =>
 						`<td style="text-align:right;font-family:ui-monospace,monospace;font-size:12px;padding:4px 8px">${escapeHtml(v)}</td>`,
 				)
-				.join("");
-			return `<tr><td style="padding:4px 8px;padding-left:${indent}px;font-family:ui-monospace,monospace;font-size:12px;${weight}">${escapeHtml(line.label)}</td>${cells}</tr>`;
+				.join("")
+			return `<tr><td style="padding:4px 8px;padding-left:${indent}px;font-family:ui-monospace,monospace;font-size:12px;${weight}">${escapeHtml(line.label)}</td>${cells}</tr>`
 		})
-		.join("\n");
+		.join("\n")
 	const headerCells = columns
 		.map(
 			(c, i) =>
 				`<th style="text-align:right;font-size:12px;padding:8px">${escapeHtml(c.title || `Col ${i + 1}`)}</th>`,
 		)
-		.join("");
+		.join("")
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -76,5 +76,5 @@ ${rows}
 </tbody>
 </table>
 </body>
-</html>`;
+</html>`
 }

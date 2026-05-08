@@ -1,11 +1,11 @@
-import { z } from "zod";
+import { z } from "zod"
 
 const dateRangeSchema = z.object({
 	/** YYYY-MM-DD */
 	from: z.string(),
 	/** YYYY-MM-DD */
 	to: z.string(),
-});
+})
 
 export const profitLossTemplateConfigSchema = z.object({
 	name: z.string(),
@@ -47,18 +47,18 @@ export const profitLossTemplateConfigSchema = z.object({
 			extractedTextPreview: z.string().max(20_000).optional(),
 		})
 		.optional(),
-});
+})
 
 export type ProfitLossTemplateConfig = z.infer<
 	typeof profitLossTemplateConfigSchema
->;
+>
 
-const today = new Date();
-const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+const today = new Date()
+const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
 
 function ymd(d: Date): string {
-	return d.toISOString().slice(0, 10);
+	return d.toISOString().slice(0, 10)
 }
 
 /** Used before any PDF upload or if parsing fails. */
@@ -77,16 +77,16 @@ export const defaultProfitLossTemplateConfig: ProfitLossTemplateConfig = {
 			columns: [],
 		},
 	],
-};
+}
 
 export function parseProfitLossConfig(
 	input: unknown,
 ): ProfitLossTemplateConfig {
-	const p = profitLossTemplateConfigSchema.safeParse(input);
+	const p = profitLossTemplateConfigSchema.safeParse(input)
 	if (p.success) {
-		return p.data;
+		return p.data
 	}
-	return defaultProfitLossTemplateConfig;
+	return defaultProfitLossTemplateConfig
 }
 
 /** Schema the LLM fills — slightly looser, then we coerce. */
@@ -115,16 +115,14 @@ export const llmProfitLossConfigSchema = z.object({
 			footer: z.string().optional(),
 		})
 		.optional(),
-});
+})
 
 export function mergeLlmIntoProfitLossConfig(
 	extractedTextHint: string,
 	partial: z.infer<typeof llmProfitLossConfigSchema>,
 ): ProfitLossTemplateConfig {
-	const d = defaultProfitLossTemplateConfig;
-	const from = partial.branding?.title?.length
-		? partial.branding.title
-		: d.name;
+	const d = defaultProfitLossTemplateConfig
+	const from = partial.branding?.title?.length ? partial.branding.title : d.name
 	return profitLossTemplateConfigSchema.parse({
 		name: partial.name?.trim() || from,
 		kind: "profit_loss",
@@ -136,7 +134,7 @@ export function mergeLlmIntoProfitLossConfig(
 		},
 		sections: partial.sections?.length
 			? partial.sections.map((s) => {
-					const t = s.type.toLowerCase();
+					const t = s.type.toLowerCase()
 					if (t === "kpi" || t === "kpi_grid") {
 						return {
 							type: "kpi_grid" as const,
@@ -144,19 +142,19 @@ export function mergeLlmIntoProfitLossConfig(
 							metrics: s.columns?.length
 								? s.columns
 								: ["Total income", "Gross profit", "Net income"],
-						};
+						}
 					}
 					return {
 						type: "table" as const,
 						source: "profit_and_loss" as const,
 						title: s.title,
 						columns: s.columns,
-					};
+					}
 				})
 			: d.sections,
 		branding: {
 			...partial.branding,
 		},
 		metadata: { extractedTextPreview: extractedTextHint.slice(0, 2000) },
-	});
+	})
 }

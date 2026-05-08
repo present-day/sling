@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"
 
 export async function POST(
 	_req: Request,
@@ -10,5 +10,5 @@ export async function POST(
 				"Client chat streaming is not wired in this scaffold — add AI SDK per PLAN.md §10.",
 		},
 		{ status: 501 },
-	);
+	)
 }

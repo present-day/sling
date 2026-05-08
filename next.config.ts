@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
 	serverExternalPackages: [
@@ -7,6 +7,6 @@ const nextConfig: NextConfig = {
 		"pdfjs-dist",
 		"pdf-parse",
 	],
-};
+}
 
-export default nextConfig;
+export default nextConfig

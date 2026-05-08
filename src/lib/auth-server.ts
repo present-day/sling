@@ -1,21 +1,21 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { auth } from "@/server/auth";
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
+import { auth } from "@/server/auth"
 
 export async function requireSession() {
 	const session = await auth.api.getSession({
 		headers: await headers(),
-	});
+	})
 	if (!session?.user) {
-		redirect("/sign-in");
+		redirect("/sign-in")
 	}
-	return session;
+	return session
 }
 
 export async function requireSessionWithOrg() {
-	const session = await requireSession();
+	const session = await requireSession()
 	if (!session.session?.activeOrganizationId) {
-		redirect("/onboarding");
+		redirect("/onboarding")
 	}
-	return session;
+	return session
 }
