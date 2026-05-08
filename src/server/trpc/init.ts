@@ -1,33 +1,33 @@
-import { initTRPC, TRPCError } from "@trpc/server";
-import superjson from "superjson";
-import type { TRPCContext } from "./context";
+import { initTRPC, TRPCError } from "@trpc/server"
+import superjson from "superjson"
+import type { TRPCContext } from "./context"
 
 const t = initTRPC.context<TRPCContext>().create({
 	transformer: superjson,
-});
+})
 
-export const router = t.router;
-export const publicProcedure = t.procedure;
+export const router = t.router
+export const publicProcedure = t.procedure
 
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 	if (!ctx.session?.user) {
-		throw new TRPCError({ code: "UNAUTHORIZED" });
+		throw new TRPCError({ code: "UNAUTHORIZED" })
 	}
 	return next({
 		ctx: {
 			...ctx,
 			session: ctx.session as NonNullable<typeof ctx.session>,
 		},
-	});
-});
+	})
+})
 
 export const orgProcedure = protectedProcedure.use(({ ctx, next }) => {
-	const orgId = ctx.session.session?.activeOrganizationId;
+	const orgId = ctx.session.session?.activeOrganizationId
 	if (!orgId) {
 		throw new TRPCError({
 			code: "PRECONDITION_FAILED",
 			message: "Select an organization first.",
-		});
+		})
 	}
-	return next({ ctx: { ...ctx, orgId } });
-});
+	return next({ ctx: { ...ctx, orgId } })
+})

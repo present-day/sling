@@ -1,12 +1,12 @@
-import "server-only";
+import "server-only"
 import {
 	ENTITY_QBO_QUERY_ENTITY,
 	ENTITY_SEARCH_QUERY_KEY,
-} from "@/lib/entity-search";
-import type { clients } from "@/server/db/schema";
-import { callQboTool } from "@/server/mcp/pool";
+} from "@/lib/entity-search"
+import type { clients } from "@/server/db/schema"
+import { callQboTool } from "@/server/mcp/pool"
 
-type ClientRow = typeof clients.$inferSelect;
+type ClientRow = typeof clients.$inferSelect
 
 // ---------------------------------------------------------------------------
 // Tool name resolution
@@ -20,9 +20,9 @@ type ClientRow = typeof clients.$inferSelect;
  */
 function toolNameForStem(entityStem: string): string {
 	if (!ENTITY_QBO_QUERY_ENTITY[entityStem]) {
-		throw new Error(`Unknown QuickBooks entity stem: ${entityStem}`);
+		throw new Error(`Unknown QuickBooks entity stem: ${entityStem}`)
 	}
-	return `search_${entityStem}`;
+	return `search_${entityStem}`
 }
 
 // ---------------------------------------------------------------------------
@@ -42,17 +42,17 @@ function buildCriteria(
 	textFilter: string | undefined,
 	limit: number,
 ): Record<string, unknown> {
-	const filterField = ENTITY_SEARCH_QUERY_KEY[entityStem];
-	const q = textFilter?.trim();
+	const filterField = ENTITY_SEARCH_QUERY_KEY[entityStem]
+	const q = textFilter?.trim()
 
 	if (q && filterField) {
 		return {
 			criteria: [{ field: filterField, value: `%${q}%`, operator: "LIKE" }],
 			limit,
-		};
+		}
 	}
 
-	return { limit };
+	return { limit }
 }
 
 // ---------------------------------------------------------------------------
@@ -72,19 +72,19 @@ function buildCriteria(
  * We skip the summary line and JSON.parse the rest into plain objects.
  */
 function parseSearchResponse(result: unknown): unknown[] {
-	const content = (result as { content?: unknown[] })?.content;
-	if (!Array.isArray(content) || content.length === 0) return [];
+	const content = (result as { content?: unknown[] })?.content
+	if (!Array.isArray(content) || content.length === 0) return []
 
 	// First item is always the "Found N <entities>:" summary — skip it
 	return content.slice(1).flatMap((item) => {
-		const text = (item as { text?: string })?.text;
-		if (!text) return [];
+		const text = (item as { text?: string })?.text
+		if (!text) return []
 		try {
-			return [JSON.parse(text)];
+			return [JSON.parse(text)]
 		} catch {
-			return [];
+			return []
 		}
-	});
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -105,8 +105,8 @@ export async function searchQboEntityListViaMcp(
 	textFilter: string | undefined,
 	limit: number,
 ): Promise<unknown[]> {
-	const toolName = toolNameForStem(entityStem);
-	const args = buildCriteria(entityStem, textFilter, limit);
-	const result = await callQboTool(client, toolName, args);
-	return parseSearchResponse(result);
+	const toolName = toolNameForStem(entityStem)
+	const args = buildCriteria(entityStem, textFilter, limit)
+	const result = await callQboTool(client, toolName, args)
+	return parseSearchResponse(result)
 }

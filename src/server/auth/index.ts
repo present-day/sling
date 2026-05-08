@@ -1,13 +1,13 @@
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { nextCookies } from "better-auth/next-js";
-import { organization } from "better-auth/plugins";
-import { getEnv } from "@/lib/env";
-import { db } from "@/server/db/client";
-import { schema } from "@/server/db/schema";
+import { betterAuth } from "better-auth"
+import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { nextCookies } from "better-auth/next-js"
+import { organization } from "better-auth/plugins"
+import { getEnv } from "@/lib/env"
+import { db } from "@/server/db/client"
+import { schema } from "@/server/db/schema"
 
 function buildAuth() {
-	const env = getEnv();
+	const env = getEnv()
 	return betterAuth({
 		baseURL: env.BETTER_AUTH_URL,
 		secret: env.BETTER_AUTH_SECRET,
@@ -23,7 +23,7 @@ function buildAuth() {
 		experimental: {
 			joins: true,
 		},
-	});
+	})
 }
 
-export const auth = buildAuth();
+export const auth = buildAuth()

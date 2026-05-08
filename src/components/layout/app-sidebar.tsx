@@ -1,19 +1,19 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { adminNav, clientNavGroups, reportNav } from "@/lib/nav";
-import { cn } from "@/lib/utils";
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { adminNav, clientNavGroups, reportNav } from "@/lib/nav"
+import { cn } from "@/lib/utils"
 
 export function AppSidebar({
 	productName = "Console",
 }: {
-	productName?: string;
+	productName?: string
 }) {
-	const pathname = usePathname();
-	const match = pathname?.match(/^\/clients\/([^/]+)/);
-	const clientBase = match ? `/clients/${match[1]}` : undefined;
+	const pathname = usePathname()
+	const match = pathname?.match(/^\/clients\/([^/]+)/)
+	const clientBase = match ? `/clients/${match[1]}` : undefined
 
 	return (
 		<aside className="bg-sidebar text-sidebar-foreground flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border">
@@ -60,7 +60,7 @@ export function AppSidebar({
 										const href =
 											item.href === ""
 												? clientBase
-												: `${clientBase}/${item.href}`;
+												: `${clientBase}/${item.href}`
 										return (
 											<SidebarLink
 												key={href}
@@ -68,7 +68,7 @@ export function AppSidebar({
 												pathname={pathname}
 												label={item.label}
 											/>
-										);
+										)
 									})}
 								</div>
 							))}
@@ -90,7 +90,7 @@ export function AppSidebar({
 				</nav>
 			</ScrollArea>
 		</aside>
-	);
+	)
 }
 
 function SidebarLink({
@@ -98,12 +98,12 @@ function SidebarLink({
 	pathname,
 	label,
 }: {
-	href: string;
-	pathname: string | null;
-	label: string;
+	href: string
+	pathname: string | null
+	label: string
 }) {
 	const active =
-		pathname === href || (href !== "/" && pathname?.startsWith(`${href}/`));
+		pathname === href || (href !== "/" && pathname?.startsWith(`${href}/`))
 	return (
 		<Link
 			className={cn(
@@ -114,5 +114,5 @@ function SidebarLink({
 		>
 			{label}
 		</Link>
-	);
+	)
 }

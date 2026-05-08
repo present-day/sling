@@ -1,6 +1,6 @@
-"use client";
+"use client"
 
-import { format } from "date-fns";
+import { format } from "date-fns"
 import {
 	AlertTriangleIcon,
 	CheckIcon,
@@ -8,42 +8,42 @@ import {
 	PlayIcon,
 	StickyNoteIcon,
 	TrashIcon,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "lucide-react"
+import type { ReactNode } from "react"
+import { useCallback, useMemo, useState } from "react"
+import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { trpc } from "@/trpc/react";
-import { CloseChatSheet } from "./close-chat-sheet";
+} from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { trpc } from "@/trpc/react"
+import { CloseChatSheet } from "./close-chat-sheet"
 
-type Disposition = "accepted" | "dismissed" | "noted";
-type Severity = "info" | "warn" | "critical";
+type Disposition = "accepted" | "dismissed" | "noted"
+type Severity = "info" | "warn" | "critical"
 
 type Finding = {
-	id: string;
-	detector: string;
-	severity: Severity;
-	title: string;
+	id: string
+	detector: string
+	severity: Severity
+	title: string
 	evidence: {
-		rule: string;
-		thresholdLabel: string;
-		currentValue: number | null;
-		baselineValue: number | null;
-		absDelta: number | null;
-		pctDelta: number | null;
-	};
-	affectedLinePaths: string[];
-	suggestedAction: string;
-};
+		rule: string
+		thresholdLabel: string
+		currentValue: number | null
+		baselineValue: number | null
+		absDelta: number | null
+		pctDelta: number | null
+	}
+	affectedLinePaths: string[]
+	suggestedAction: string
+}
 
 export function CloseReviewPanel({
 	clientId,
@@ -51,37 +51,37 @@ export function CloseReviewPanel({
 	endDate,
 	accountingMethod,
 }: {
-	clientId: string;
-	startDate: string;
-	endDate: string;
-	accountingMethod: "Accrual" | "Cash";
+	clientId: string
+	startDate: string
+	endDate: string
+	accountingMethod: "Accrual" | "Cash"
 }) {
-	const utils = trpc.useUtils();
+	const utils = trpc.useUtils()
 
 	const latestQuery = trpc.monthEndClose.getLatestForPeriod.useQuery(
 		{ clientId, startDate, endDate },
 		{ enabled: Boolean(clientId && startDate && endDate) },
-	);
+	)
 
 	const historyQuery = trpc.monthEndClose.listByClient.useQuery(
 		{ clientId, limit: 10 },
 		{ enabled: Boolean(clientId) },
-	);
+	)
 
 	const runMutation = trpc.monthEndClose.run.useMutation({
 		onSuccess: async () => {
-			toast.success("Close run complete");
+			toast.success("Close run complete")
 			await utils.monthEndClose.getLatestForPeriod.invalidate({
 				clientId,
 				startDate,
 				endDate,
-			});
-			await utils.monthEndClose.listByClient.invalidate({ clientId });
+			})
+			await utils.monthEndClose.listByClient.invalidate({ clientId })
 		},
 		onError: (e) => {
-			toast.error(e.message);
+			toast.error(e.message)
 		},
-	});
+	})
 
 	const dispositionMutation = trpc.monthEndClose.setDisposition.useMutation({
 		onSuccess: async () => {
@@ -89,11 +89,11 @@ export function CloseReviewPanel({
 				clientId,
 				startDate,
 				endDate,
-			});
+			})
 		},
-	});
+	})
 
-	const [chatOpen, setChatOpen] = useState(false);
+	const [chatOpen, setChatOpen] = useState(false)
 
 	const onRun = useCallback(() => {
 		runMutation.mutate({
@@ -101,31 +101,31 @@ export function CloseReviewPanel({
 			startDate,
 			endDate,
 			accountingMethod,
-		});
-	}, [runMutation, clientId, startDate, endDate, accountingMethod]);
+		})
+	}, [runMutation, clientId, startDate, endDate, accountingMethod])
 
-	const close = latestQuery.data ?? null;
-	const findings = (close?.findings ?? []) as Finding[];
+	const close = latestQuery.data ?? null
+	const findings = (close?.findings ?? []) as Finding[]
 
 	const dispositionsByFinding = useMemo(() => {
 		const m = new Map<
 			string,
 			{ disposition: Disposition; note: string | null }
-		>();
+		>()
 		for (const d of close?.dispositions ?? []) {
-			m.set(d.findingId, { disposition: d.disposition, note: d.note });
+			m.set(d.findingId, { disposition: d.disposition, note: d.note })
 		}
-		return m;
-	}, [close?.dispositions]);
+		return m
+	}, [close?.dispositions])
 
 	const severityOrder: Record<Severity, number> = {
 		critical: 0,
 		warn: 1,
 		info: 2,
-	};
+	}
 	const sortedFindings = [...findings].sort(
 		(a, b) => severityOrder[a.severity] - severityOrder[b.severity],
-	);
+	)
 
 	const activeFindingIds = new Set(
 		findings
@@ -133,7 +133,7 @@ export function CloseReviewPanel({
 				(f) => dispositionsByFinding.get(f.id)?.disposition !== "dismissed",
 			)
 			.map((f) => f.id),
-	);
+	)
 
 	return (
 		<div className="space-y-4">
@@ -298,29 +298,29 @@ export function CloseReviewPanel({
 				/>
 			) : null}
 		</div>
-	);
+	)
 }
 
 function NarrativeBody({
 	summary,
 	activeFindingIds,
 }: {
-	summary: string;
-	activeFindingIds: Set<string>;
+	summary: string
+	activeFindingIds: Set<string>
 }) {
-	const tokens = summary.split(/(\[[^\]]+\])/g);
-	const rendered: ReactNode[] = [];
-	let offset = 0;
+	const tokens = summary.split(/(\[[^\]]+\])/g)
+	const rendered: ReactNode[] = []
+	let offset = 0
 	for (const t of tokens) {
-		const m = t.match(/^\[([^\]]+)\]$/);
-		const start = offset;
-		offset += t.length;
+		const m = t.match(/^\[([^\]]+)\]$/)
+		const start = offset
+		offset += t.length
 		if (!m) {
-			rendered.push(<span key={`t-${start}-${t.length}`}>{t}</span>);
-			continue;
+			rendered.push(<span key={`t-${start}-${t.length}`}>{t}</span>)
+			continue
 		}
-		const id = m[1];
-		const known = activeFindingIds.has(id);
+		const id = m[1]
+		const known = activeFindingIds.has(id)
 		rendered.push(
 			<button
 				type="button"
@@ -332,53 +332,53 @@ function NarrativeBody({
 				}`}
 				onClick={() => {
 					if (!known) {
-						return;
+						return
 					}
 					document
 						.getElementById(`finding-${id}`)
-						?.scrollIntoView({ behavior: "smooth", block: "center" });
+						?.scrollIntoView({ behavior: "smooth", block: "center" })
 				}}
 				title={known ? "Jump to finding" : "Finding not in this run"}
 			>
 				{id}
 			</button>,
-		);
+		)
 	}
 	return (
 		<p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
 			{rendered}
 		</p>
-	);
+	)
 }
 
 function fmtMoney(n: number | null): string {
 	if (n === null) {
-		return "—";
+		return "—"
 	}
-	const sign = n < 0 ? "-" : "";
+	const sign = n < 0 ? "-" : ""
 	return `${sign}$${Math.abs(n).toLocaleString(undefined, {
 		minimumFractionDigits: 2,
 		maximumFractionDigits: 2,
-	})}`;
+	})}`
 }
 
 function fmtPct(n: number | null): string {
 	if (n === null) {
-		return "—";
+		return "—"
 	}
-	return `${n.toFixed(1)}%`;
+	return `${n.toFixed(1)}%`
 }
 
 function severityBadgeVariant(
 	s: Severity,
 ): "destructive" | "secondary" | "outline" {
 	if (s === "critical") {
-		return "destructive";
+		return "destructive"
 	}
 	if (s === "warn") {
-		return "secondary";
+		return "secondary"
 	}
-	return "outline";
+	return "outline"
 }
 
 function FindingCard({
@@ -388,15 +388,15 @@ function FindingCard({
 	pending,
 	onDisposition,
 }: {
-	finding: Finding;
-	commentary?: string;
-	disposition: { disposition: Disposition; note: string | null } | null;
-	pending: boolean;
-	onDisposition: (d: Disposition, note?: string | null) => void;
+	finding: Finding
+	commentary?: string
+	disposition: { disposition: Disposition; note: string | null } | null
+	pending: boolean
+	onDisposition: (d: Disposition, note?: string | null) => void
 }) {
-	const [noteDraft, setNoteDraft] = useState(disposition?.note ?? "");
-	const [noteOpen, setNoteOpen] = useState(false);
-	const isDismissed = disposition?.disposition === "dismissed";
+	const [noteDraft, setNoteDraft] = useState(disposition?.note ?? "")
+	const [noteOpen, setNoteOpen] = useState(false)
+	const isDismissed = disposition?.disposition === "dismissed"
 
 	return (
 		<Card
@@ -510,8 +510,8 @@ function FindingCard({
 								size="sm"
 								variant="ghost"
 								onClick={() => {
-									setNoteOpen(false);
-									setNoteDraft(disposition?.note ?? "");
+									setNoteOpen(false)
+									setNoteDraft(disposition?.note ?? "")
 								}}
 							>
 								Cancel
@@ -519,8 +519,8 @@ function FindingCard({
 							<Button
 								size="sm"
 								onClick={() => {
-									onDisposition("noted", noteDraft.trim() || null);
-									setNoteOpen(false);
+									onDisposition("noted", noteDraft.trim() || null)
+									setNoteOpen(false)
 								}}
 							>
 								Save note
@@ -530,11 +530,11 @@ function FindingCard({
 				) : null}
 			</CardContent>
 		</Card>
-	);
+	)
 }
 
 function EvidenceBlock({ finding }: { finding: Finding }) {
-	const { evidence } = finding;
+	const { evidence } = finding
 	return (
 		<div className="space-y-1 rounded-md border bg-muted/30 p-3 font-mono text-xs">
 			<div className="flex items-center gap-1 font-medium text-foreground">
@@ -561,5 +561,5 @@ function EvidenceBlock({ finding }: { finding: Finding }) {
 				</span>
 			</div>
 		</div>
-	);
+	)
 }

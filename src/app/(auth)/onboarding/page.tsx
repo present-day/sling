@@ -1,17 +1,17 @@
-"use client";
+"use client"
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function OnboardingPage() {
-	const router = useRouter();
-	const [organizationName, setOrganizationName] = useState("");
-	const [licenseKey, setLicenseKey] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const [pending, setPending] = useState(false);
+	const router = useRouter()
+	const [organizationName, setOrganizationName] = useState("")
+	const [licenseKey, setLicenseKey] = useState("")
+	const [error, setError] = useState<string | null>(null)
+	const [pending, setPending] = useState(false)
 
 	return (
 		<div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
@@ -26,22 +26,22 @@ export default function OnboardingPage() {
 			<form
 				className="flex flex-col gap-4"
 				onSubmit={async (e) => {
-					e.preventDefault();
-					setPending(true);
-					setError(null);
+					e.preventDefault()
+					setPending(true)
+					setError(null)
 					const res = await fetch("/api/org/bootstrap", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({ organizationName, licenseKey }),
-					});
-					const data = (await res.json()) as { error?: string };
-					setPending(false);
+					})
+					const data = (await res.json()) as { error?: string }
+					setPending(false)
 					if (!res.ok) {
-						setError(data.error ?? "Activation failed");
-						return;
+						setError(data.error ?? "Activation failed")
+						return
 					}
-					router.push("/dashboard");
-					router.refresh();
+					router.push("/dashboard")
+					router.refresh()
 				}}
 			>
 				<div className="space-y-2">
@@ -80,5 +80,5 @@ export default function OnboardingPage() {
 				</Button>
 			</form>
 		</div>
-	);
+	)
 }

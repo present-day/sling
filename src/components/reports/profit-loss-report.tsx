@@ -1,18 +1,18 @@
-"use client";
+"use client"
 
-import { format } from "date-fns";
-import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { format } from "date-fns"
+import Link from "next/link"
+import { useCallback, useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select"
 import {
 	Table,
 	TableBody,
@@ -20,43 +20,43 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table";
-import { trpc } from "@/trpc/react";
-import { CloseReviewPanel } from "./close-review-panel";
+} from "@/components/ui/table"
+import { trpc } from "@/trpc/react"
+import { CloseReviewPanel } from "./close-review-panel"
 
-type DateInput = string;
+type DateInput = string
 
 function isQuickBooksReconnectError(message: string): boolean {
 	return (
 		message.includes("invalid_grant") ||
 		message.includes("QuickBooks token refresh failed") ||
 		message.includes("Token exchange failed")
-	);
+	)
 }
 
 function defaultRange(): { start: DateInput; end: DateInput } {
-	const end = new Date();
-	const start = new Date(end.getFullYear(), end.getMonth(), 1);
+	const end = new Date()
+	const start = new Date(end.getFullYear(), end.getMonth(), 1)
 	return {
 		start: format(start, "yyyy-MM-dd"),
 		end: format(end, "yyyy-MM-dd"),
-	};
+	}
 }
 
 export function ProfitLossReport({ clientId }: { clientId: string }) {
-	const dr = useMemo(() => defaultRange(), []);
-	const [startDate, setStartDate] = useState(dr.start);
-	const [endDate, setEndDate] = useState(dr.end);
+	const dr = useMemo(() => defaultRange(), [])
+	const [startDate, setStartDate] = useState(dr.start)
+	const [endDate, setEndDate] = useState(dr.end)
 	const [accountingMethod, setAccountingMethod] = useState<"Accrual" | "Cash">(
 		"Accrual",
-	);
+	)
 	const [summarizeBy, setSummarizeBy] = useState<
 		"Total" | "Month" | "Quarter" | "Year" | undefined
-	>(undefined);
+	>(undefined)
 
 	const templateQuery = trpc.reports.getBySlug.useQuery({
 		slug: "profit-loss",
-	});
+	})
 	const reportQuery = trpc.reports.profitLoss.useQuery(
 		{
 			clientId,
@@ -66,63 +66,63 @@ export function ProfitLossReport({ clientId }: { clientId: string }) {
 			...(summarizeBy ? { summarizeColumnBy: summarizeBy } : {}),
 		},
 		{ enabled: Boolean(startDate && endDate) },
-	);
+	)
 
-	const utils = trpc.useUtils();
+	const utils = trpc.useUtils()
 
 	const applyTemplateDefaults = useCallback(() => {
 		const c = templateQuery.data?.config as
 			| {
 					params?: {
-						dateRange?: { from?: string; to?: string } | string;
-						accountingMethod?: "cash" | "accrual";
-						summarizeColumnBy?: typeof summarizeBy;
-					};
+						dateRange?: { from?: string; to?: string } | string
+						accountingMethod?: "cash" | "accrual"
+						summarizeColumnBy?: typeof summarizeBy
+					}
 			  }
-			| undefined;
+			| undefined
 		if (!c?.params) {
-			return;
+			return
 		}
-		const dr = c.params.dateRange;
+		const dr = c.params.dateRange
 		if (typeof dr === "object" && dr?.from && dr?.to) {
-			setStartDate(dr.from);
-			setEndDate(dr.to);
+			setStartDate(dr.from)
+			setEndDate(dr.to)
 		}
 		if (c.params.accountingMethod) {
 			setAccountingMethod(
 				c.params.accountingMethod === "cash" ? "Cash" : "Accrual",
-			);
+			)
 		}
 		if (c.params.summarizeColumnBy) {
-			setSummarizeBy(c.params.summarizeColumnBy);
+			setSummarizeBy(c.params.summarizeColumnBy)
 		}
-	}, [templateQuery.data]);
+	}, [templateQuery.data])
 
 	const onUploadPdf: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
-		const file = e.target.files?.[0];
+		const file = e.target.files?.[0]
 		if (!file) {
-			return;
+			return
 		}
-		const form = new FormData();
-		form.append("file", file);
+		const form = new FormData()
+		form.append("file", file)
 		const res = await fetch("/api/reports/profit-loss-template", {
 			method: "POST",
 			body: form,
 			credentials: "include",
-		});
+		})
 		if (!res.ok) {
-			const j = (await res.json().catch(() => ({}))) as { error?: string };
-			alert(j.error ?? `Upload failed (${res.status})`);
-			return;
+			const j = (await res.json().catch(() => ({}))) as { error?: string }
+			alert(j.error ?? `Upload failed (${res.status})`)
+			return
 		}
-		await utils.reports.getBySlug.invalidate({ slug: "profit-loss" });
-		await utils.reports.list.invalidate();
-		await templateQuery.refetch();
-		e.target.value = "";
-	};
+		await utils.reports.getBySlug.invalidate({ slug: "profit-loss" })
+		await utils.reports.list.invalidate()
+		await templateQuery.refetch()
+		e.target.value = ""
+	}
 
-	const lines = reportQuery.data?.lines ?? [];
-	const columns = reportQuery.data?.columns ?? [{ title: "Amount" }];
+	const lines = reportQuery.data?.lines ?? []
+	const columns = reportQuery.data?.columns ?? [{ title: "Amount" }]
 
 	const templateName =
 		templateQuery.data?.config &&
@@ -130,8 +130,8 @@ export function ProfitLossReport({ clientId }: { clientId: string }) {
 		templateQuery.data.config !== null &&
 		"name" in templateQuery.data.config
 			? String((templateQuery.data.config as { name: string }).name)
-			: "Profit & Loss";
-	const displayTitle = reportQuery.data?.reportName ?? templateName;
+			: "Profit & Loss"
+	const displayTitle = reportQuery.data?.reportName ?? templateName
 
 	return (
 		<div className="space-y-6">
@@ -314,7 +314,7 @@ export function ProfitLossReport({ clientId }: { clientId: string }) {
 									{columns.map((col, columnIndex) => {
 										const v =
 											padRowValues(line.values, columns.length)[columnIndex] ??
-											"";
+											""
 										return (
 											<TableCell
 												key={`${line.label}¦${col.title}¦${v}`}
@@ -322,7 +322,7 @@ export function ProfitLossReport({ clientId }: { clientId: string }) {
 											>
 												{v}
 											</TableCell>
-										);
+										)
 									})}
 								</TableRow>
 							))}
@@ -331,16 +331,16 @@ export function ProfitLossReport({ clientId }: { clientId: string }) {
 				</div>
 			)}
 		</div>
-	);
+	)
 }
 
 function padRowValues(values: string[], n: number): string[] {
 	if (n <= 1) {
-		return values.length ? values : [""];
+		return values.length ? values : [""]
 	}
-	const out = [...values];
+	const out = [...values]
 	while (out.length < n) {
-		out.push("");
+		out.push("")
 	}
-	return out.slice(0, n);
+	return out.slice(0, n)
 }

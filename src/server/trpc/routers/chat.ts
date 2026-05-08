@@ -1,7 +1,7 @@
-import { desc, eq } from "drizzle-orm";
-import { z } from "zod";
-import { chatThreads } from "@/server/db/schema";
-import { orgProcedure, router } from "../init";
+import { desc, eq } from "drizzle-orm"
+import { z } from "zod"
+import { chatThreads } from "@/server/db/schema"
+import { orgProcedure, router } from "../init"
 
 export const chatRouter = router({
 	listThreads: orgProcedure.query(async ({ ctx }) => {
@@ -10,7 +10,7 @@ export const chatRouter = router({
 			.from(chatThreads)
 			.where(eq(chatThreads.orgId, ctx.orgId))
 			.orderBy(desc(chatThreads.createdAt))
-			.limit(50);
+			.limit(50)
 		return z
 			.array(
 				z.object({
@@ -25,6 +25,6 @@ export const chatRouter = router({
 					...t,
 					createdAt: new Date(t.createdAt),
 				})),
-			);
+			)
 	}),
-});
+})

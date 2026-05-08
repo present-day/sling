@@ -19,6 +19,6 @@ export const closeThresholds = {
 	grossMarginDriftPts: 5,
 	/** Severity escalation — critical when absolute delta exceeds this. */
 	criticalAbs: 5000,
-} as const;
+} as const
 
-export type CloseThresholds = typeof closeThresholds;
+export type CloseThresholds = typeof closeThresholds

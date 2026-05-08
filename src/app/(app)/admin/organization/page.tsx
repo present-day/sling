@@ -8,5 +8,5 @@ export default function AdminOrganizationPage() {
 				Auth organization APIs.
 			</p>
 		</div>
-	);
+	)
 }

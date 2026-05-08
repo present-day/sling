@@ -1,7 +1,7 @@
 export type NavItem = {
-	href: string;
-	label: string;
-};
+	href: string
+	label: string
+}
 
 export const clientNavGroups: { label: string; items: NavItem[] }[] = [
 	{
@@ -57,7 +57,7 @@ export const clientNavGroups: { label: string; items: NavItem[] }[] = [
 			{ href: "chat", label: "Chat" },
 		],
 	},
-];
+]
 
 export const reportNav: NavItem[] = [
 	{ href: "profit-loss", label: "Profit & Loss" },
@@ -71,10 +71,10 @@ export const reportNav: NavItem[] = [
 	{ href: "customer-balance", label: "Customer Balance" },
 	{ href: "aged-payables", label: "Aged Payables" },
 	{ href: "vendor-expenses", label: "Vendor Expenses" },
-];
+]
 
 export const adminNav: NavItem[] = [
 	{ href: "/admin/chat", label: "Admin chat" },
 	{ href: "/admin/organization", label: "Organization" },
 	{ href: "/admin/users", label: "Users" },
-];
+]
