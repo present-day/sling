@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/app-shell"
+import { DropZoneProvider } from "@/components/uploads/dropzone-provider"
 import { requireSessionWithOrg } from "@/lib/auth-server"
 
 export default async function AppSegmentLayout({
@@ -7,5 +8,9 @@ export default async function AppSegmentLayout({
 	children: React.ReactNode
 }) {
 	await requireSessionWithOrg()
-	return <AppShell>{children}</AppShell>
+	return (
+		<AppShell>
+			<DropZoneProvider>{children}</DropZoneProvider>
+		</AppShell>
+	)
 }
