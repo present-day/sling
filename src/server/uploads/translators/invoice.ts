@@ -17,12 +17,12 @@ import {
 export function translateInvoice(fields: ExtractedFields): InvoiceDraft {
 	const missing: string[] = []
 	const Line = buildLines(fields)
-	if (Line.length === 0) missing.push("lines or totalAmount")
+	if (Line.length === 0) missing.push("lines", "totalAmount")
 	if (!fields.customerName) missing.push("customerName")
 	if (missing.length > 0) {
 		throw new TranslatorInputError(
 			missing,
-			`Invoice needs ${missing.join(" + ")} before it can be drafted.`,
+			`Invoice needs ${missing.join(", ")} before it can be drafted.`,
 		)
 	}
 

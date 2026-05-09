@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { ExtractedFields } from "@/server/uploads/entity-kinds"
+import { EntityKind, type ExtractedFields } from "@/server/uploads/entity-kinds"
 import {
 	translateCustomer,
 	translateEstimate,
@@ -156,15 +156,19 @@ describe("translateSalesScope (entry point)", () => {
 	it("dispatches by entity kind and returns null for non-sales kinds", () => {
 		const fields: ExtractedFields = { totalAmount: 50, customerName: "X" }
 
-		expect(translateSalesScope("SalesReceipt", fields)?.kind).toBe(
-			"SalesReceipt",
+		expect(translateSalesScope(EntityKind.salesReceipt, fields)?.kind).toBe(
+			EntityKind.salesReceipt,
 		)
-		expect(translateSalesScope("Invoice", fields)?.kind).toBe("Invoice")
-		expect(translateSalesScope("Customer", { customerName: "X" })?.kind).toBe(
-			"Customer",
+		expect(translateSalesScope(EntityKind.invoice, fields)?.kind).toBe(
+			EntityKind.invoice,
 		)
-		expect(translateSalesScope("Estimate", fields)?.kind).toBe("Estimate")
-		expect(translateSalesScope("Bill", fields)).toBeNull()
-		expect(translateSalesScope("Deposit", fields)).toBeNull()
+		expect(
+			translateSalesScope(EntityKind.customer, { customerName: "X" })?.kind,
+		).toBe(EntityKind.customer)
+		expect(translateSalesScope(EntityKind.estimate, fields)?.kind).toBe(
+			EntityKind.estimate,
+		)
+		expect(translateSalesScope(EntityKind.bill, fields)).toBeNull()
+		expect(translateSalesScope(EntityKind.deposit, fields)).toBeNull()
 	})
 })
