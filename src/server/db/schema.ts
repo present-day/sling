@@ -109,9 +109,14 @@ export const chatThreads = sqliteTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 		title: text("title"),
-		/** Optional context kind this thread is scoped to, e.g. a month-end close run. */
-		contextKind: text("context_kind", { enum: ["month_end_close"] }),
-		/** Opaque id of the context row (e.g. `month_end_closes.id`). */
+		/** Optional context kind this thread is scoped to. `month_end_close` keys
+		 * `contextId` to a `month_end_closes.id`; `cockpit_scope` keys it to one
+		 * of the cockpit tab scopes (sales / purchases / banking / books / reports). */
+		contextKind: text("context_kind", {
+			enum: ["month_end_close", "cockpit_scope"],
+		}),
+		/** Opaque id of the context row (`month_end_closes.id` for month_end_close,
+		 * the literal scope string for cockpit_scope). */
 		contextId: text("context_id"),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
