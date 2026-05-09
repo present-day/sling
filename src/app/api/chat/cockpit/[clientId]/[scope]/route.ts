@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic"
 import { createId } from "@paralleldrive/cuid2"
 import { streamText } from "ai"
-import { and, asc, eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { isTabScope, TAB_LABELS, type TabScope } from "@/lib/cockpit"
@@ -124,12 +124,16 @@ export async function POST(req: Request, ctx: { params: Promise<Params> }) {
 
 	let threadId = parsedBody.data.threadId
 	if (threadId) {
+		const requestedThreadId = threadId
 		const existing = await db.query.chatThreads.findFirst({
 			where: (t, { eq: eqFn, and: andFn }) =>
 				andFn(
-					eqFn(t.id, threadId as string),
+					eqFn(t.id, requestedThreadId),
 					eqFn(t.orgId, orgId),
 					eqFn(t.userId, session.user.id),
+					eqFn(t.clientId, clientId),
+					eqFn(t.contextKind, "cockpit_scope"),
+					eqFn(t.contextId, scope),
 				),
 		})
 		if (!existing) {
@@ -193,11 +197,12 @@ export async function POST(req: Request, ctx: { params: Promise<Params> }) {
 		return response
 	} catch (error) {
 		const mapped = mapScopeChatError(error)
+		const errorMessage = error instanceof Error ? error.message : String(error)
 		console.error("Cockpit scope chat failed", {
 			clientId,
 			scope,
 			threadId,
-			error,
+			errorMessage,
 		})
 		return NextResponse.json(
 			{ error: mapped.message },
@@ -244,12 +249,7 @@ export async function GET(req: Request, ctx: { params: Promise<Params> }) {
 	const messages = await db
 		.select({ role: chatMessages.role, content: chatMessages.content })
 		.from(chatMessages)
-		.where(
-			and(
-				eq(chatMessages.threadId, thread.id),
-				eq(chatMessages.role, chatMessages.role),
-			),
-		)
+		.where(eq(chatMessages.threadId, thread.id))
 		.orderBy(asc(chatMessages.createdAt))
 
 	const out = messages
