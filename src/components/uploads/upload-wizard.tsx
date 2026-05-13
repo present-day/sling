@@ -3,6 +3,7 @@
 import {
 	AlertCircleIcon,
 	CheckCircle2Icon,
+	ExternalLinkIcon,
 	FileTextIcon,
 	Loader2Icon,
 } from "lucide-react"
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import type { Candidate, DropZoneState } from "./dropzone-types"
+import type { Candidate, ChosenOutcome, DropZoneState } from "./dropzone-types"
 
 type WizardOpen = Exclude<DropZoneState["status"], "idle" | "dragging">
 
@@ -158,21 +159,11 @@ function WizardBody({
 	}
 	if (state.status === "chosen") {
 		return (
-			<div className="flex flex-col gap-3">
-				<div className="flex items-start gap-3 rounded-md border border-positive/40 bg-positive/5 p-3">
-					<CheckCircle2Icon className="mt-0.5 size-5 text-positive" />
-					<div className="flex flex-col gap-1 text-sm">
-						<p className="font-medium text-ink-primary">
-							{state.entityKind} chosen for {state.fileName}.
-						</p>
-						<p className="text-ink-muted">
-							The upload has been recorded and tagged. Full entity creation in
-							QuickBooks lands with the Sales and Purchases / Banking
-							translators.
-						</p>
-					</div>
-				</div>
-			</div>
+			<ChosenBody
+				entityKind={state.entityKind}
+				fileName={state.fileName}
+				outcome={state.outcome}
+			/>
 		)
 	}
 	if (state.status === "error") {
@@ -236,6 +227,102 @@ function CandidateCard({
 				</dl>
 			) : null}
 		</button>
+	)
+}
+
+function ChosenBody({
+	entityKind,
+	fileName,
+	outcome,
+}: {
+	entityKind: string
+	fileName: string
+	outcome: ChosenOutcome
+}) {
+	if (outcome.kind === "posted") {
+		const accent = outcome.warning
+			? "border-warning/40 bg-warning/5"
+			: "border-positive/40 bg-positive/5"
+		const iconClass = outcome.warning ? "text-warning" : "text-positive"
+		return (
+			<div className="flex flex-col gap-3">
+				<div
+					className={cn("flex items-start gap-3 rounded-md border p-3", accent)}
+				>
+					<CheckCircle2Icon className={cn("mt-0.5 size-5", iconClass)} />
+					<div className="flex flex-col gap-1 text-sm">
+						<p className="font-medium text-ink-primary">
+							{entityKind} posted to QuickBooks.
+						</p>
+						<dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 pt-1 text-xs">
+							<dt className="text-ink-muted">file</dt>
+							<dd className="truncate font-mono tabular-nums text-ink-primary">
+								{fileName}
+							</dd>
+							<dt className="text-ink-muted">entity id</dt>
+							<dd className="font-mono tabular-nums text-ink-primary">
+								{outcome.createdEntityId}
+							</dd>
+							{outcome.qboAttachableId ? (
+								<>
+									<dt className="text-ink-muted">attachable id</dt>
+									<dd className="font-mono tabular-nums text-ink-primary">
+										{outcome.qboAttachableId}
+									</dd>
+								</>
+							) : null}
+						</dl>
+						{outcome.warning ? (
+							<p className="text-xs text-ink-muted">{outcome.warning}</p>
+						) : null}
+					</div>
+				</div>
+				<a
+					href={outcome.entityHref}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="inline-flex items-center gap-1.5 self-start rounded-md border border-border-subtle bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink-primary transition-colors hover:bg-surface-sunken/60"
+				>
+					<ExternalLinkIcon className="size-4" />
+					View in QuickBooks
+				</a>
+			</div>
+		)
+	}
+	if (outcome.kind === "drafted_pending_review") {
+		return (
+			<div className="flex flex-col gap-3">
+				<div className="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/5 p-3">
+					<AlertCircleIcon className="mt-0.5 size-5 text-warning" />
+					<div className="flex flex-col gap-1 text-sm">
+						<p className="font-medium text-ink-primary">
+							{entityKind} drafted, but needs review.
+						</p>
+						<p className="text-ink-muted">
+							{fileName} is recorded. To post it to QuickBooks we still need:{" "}
+							<span className="font-mono">{outcome.missing.join(", ")}</span>.
+							The wizard form in issue #10 will collect these fields.
+						</p>
+					</div>
+				</div>
+			</div>
+		)
+	}
+	return (
+		<div className="flex flex-col gap-3">
+			<div className="flex items-start gap-3 rounded-md border border-border-subtle bg-surface-sunken/40 p-3">
+				<FileTextIcon className="mt-0.5 size-5 text-ink-muted" />
+				<div className="flex flex-col gap-1 text-sm">
+					<p className="font-medium text-ink-primary">
+						{entityKind} recorded for {fileName}.
+					</p>
+					<p className="text-ink-muted">
+						QuickBooks posting for {entityKind} ships with the Purchases /
+						Banking translators (issue #12).
+					</p>
+				</div>
+			</div>
+		</div>
 	)
 }
 
