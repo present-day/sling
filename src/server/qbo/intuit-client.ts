@@ -36,6 +36,11 @@ export interface IntuitClient {
 		bytes: Buffer
 		attachable: AttachableMetadata
 	}): Promise<{ Id: string } & Record<string, unknown>>
+	/**
+	 * Run a QBO query (the SQL-ish dialect at /v3/company/{realm}/query).
+	 * Caller is responsible for escaping single quotes inside literal values.
+	 */
+	queryEntity<T = Record<string, unknown>>(query: string): Promise<T>
 }
 
 export interface AttachableMetadata {
@@ -163,7 +168,25 @@ export function makeIntuitClient(client: ClientRow): IntuitClient {
 		return created as { Id: string } & Record<string, unknown>
 	}
 
-	return { createEntity, uploadAttachable }
+	async function queryEntity<T = Record<string, unknown>>(
+		query: string,
+	): Promise<T> {
+		const accessToken = await getAccessToken(client)
+		const url = `${base}/v3/company/${realmId}/query?query=${encodeURIComponent(query)}&minorversion=${MINOR_VERSION}`
+		const res = await fetch(url, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+				Accept: "application/json",
+			},
+		})
+		if (!res.ok) {
+			throw new IntuitApiError(res.status, await parseIntuitFault(res), "query")
+		}
+		return (await res.json()) as T
+	}
+
+	return { createEntity, uploadAttachable, queryEntity }
 }
 
 /**

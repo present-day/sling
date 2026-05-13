@@ -6,7 +6,9 @@ import {
 	ExternalLinkIcon,
 	FileTextIcon,
 	Loader2Icon,
+	PlusCircleIcon,
 } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +21,13 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import type { Candidate, ChosenOutcome, DropZoneState } from "./dropzone-types"
+import type {
+	Candidate,
+	ChosenOutcome,
+	DropZoneState,
+	ResolutionDecision,
+	ResolutionPrompt,
+} from "./dropzone-types"
 
 type WizardOpen = Exclude<DropZoneState["status"], "idle" | "dragging">
 
@@ -27,6 +35,7 @@ const OPEN_STATUSES: readonly WizardOpen[] = [
 	"classifying",
 	"choosing",
 	"committing",
+	"resolving_refs",
 	"chosen",
 	"error",
 ] as const
@@ -38,10 +47,12 @@ function isOpenStatus(s: DropZoneState["status"]): s is WizardOpen {
 export function UploadWizard({
 	state,
 	onChoose,
+	onSubmitResolutions,
 	onDismiss,
 }: {
 	state: DropZoneState
 	onChoose: (entityKind: string) => void
+	onSubmitResolutions: (decisions: ResolutionDecision[]) => void
 	onDismiss: () => void
 }) {
 	const open = isOpenStatus(state.status)
@@ -58,7 +69,11 @@ export function UploadWizard({
 					<SheetDescription>{descriptionFor(state)}</SheetDescription>
 				</SheetHeader>
 				<div className="flex-1 overflow-y-auto p-4">
-					<WizardBody state={state} onChoose={onChoose} />
+					<WizardBody
+						state={state}
+						onChoose={onChoose}
+						onSubmitResolutions={onSubmitResolutions}
+					/>
 				</div>
 				<SheetFooter className="border-t border-border-subtle">
 					<Button
@@ -82,6 +97,8 @@ function titleFor(state: DropZoneState): string {
 			return "Confirm what to file"
 		case "committing":
 			return "Filing…"
+		case "resolving_refs":
+			return "Match to QuickBooks"
 		case "chosen":
 			return "Filed"
 		case "error":
@@ -99,6 +116,8 @@ function descriptionFor(state: DropZoneState): string {
 			return `${state.fileName} · pick the QuickBooks entity to file as`
 		case "committing":
 			return `${state.fileName} · ${state.entityKind}`
+		case "resolving_refs":
+			return `${state.fileName} · pick or create the linked records`
 		case "chosen":
 			return `${state.fileName} · ${state.entityKind}`
 		case "error":
@@ -111,9 +130,11 @@ function descriptionFor(state: DropZoneState): string {
 function WizardBody({
 	state,
 	onChoose,
+	onSubmitResolutions,
 }: {
 	state: DropZoneState
 	onChoose: (entityKind: string) => void
+	onSubmitResolutions: (decisions: ResolutionDecision[]) => void
 }) {
 	if (state.status === "classifying") {
 		return (
@@ -155,6 +176,11 @@ function WizardBody({
 					Recording {state.entityKind} for {state.fileName}…
 				</div>
 			</div>
+		)
+	}
+	if (state.status === "resolving_refs") {
+		return (
+			<ResolveRefsBody prompts={state.prompts} onSubmit={onSubmitResolutions} />
 		)
 	}
 	if (state.status === "chosen") {
@@ -227,6 +253,131 @@ function CandidateCard({
 				</dl>
 			) : null}
 		</button>
+	)
+}
+
+function ResolveRefsBody({
+	prompts,
+	onSubmit,
+}: {
+	prompts: readonly ResolutionPrompt[]
+	onSubmit: (decisions: ResolutionDecision[]) => void
+}) {
+	// Map from role -> chosen ResolutionChoice (or undefined while pending).
+	const [picks, setPicks] = useState<
+		Record<string, ResolutionDecision["choice"] | undefined>
+	>({})
+	const allPicked = prompts.every((p) => picks[p.role] !== undefined)
+
+	const choose = (role: string, choice: ResolutionDecision["choice"]) => {
+		setPicks((prev) => ({ ...prev, [role]: choice }))
+	}
+
+	const fire = () => {
+		const decisions: ResolutionDecision[] = []
+		for (const p of prompts) {
+			const choice = picks[p.role]
+			if (!choice) return
+			decisions.push({ role: p.role, choice })
+		}
+		onSubmit(decisions)
+	}
+
+	return (
+		<div className="flex flex-col gap-4">
+			{prompts.map((p) => (
+				<PromptCard
+					key={p.role}
+					prompt={p}
+					pick={picks[p.role]}
+					onPickExisting={(value) =>
+						choose(p.role, { kind: "existing", value })
+					}
+					onPickCreate={() =>
+						choose(p.role, { kind: "create_new", name: p.name })
+					}
+				/>
+			))}
+			<Button onClick={fire} disabled={!allPicked} className="self-end">
+				File to QuickBooks
+			</Button>
+		</div>
+	)
+}
+
+function PromptCard({
+	prompt,
+	pick,
+	onPickExisting,
+	onPickCreate,
+}: {
+	prompt: ResolutionPrompt
+	pick: ResolutionDecision["choice"] | undefined
+	onPickExisting: (value: string) => void
+	onPickCreate: () => void
+}) {
+	const label = prompt.role === "CustomerRef" ? "Customer" : "Vendor"
+	return (
+		<div className="flex flex-col gap-2 rounded-md border border-border-subtle bg-surface-raised p-3">
+			<div className="flex items-baseline justify-between gap-2">
+				<span className="text-xs uppercase tracking-wide text-ink-muted">
+					{label}
+				</span>
+				<span className="font-mono text-sm text-ink-primary">
+					{prompt.name}
+				</span>
+			</div>
+			{prompt.matches.length > 0 ? (
+				<>
+					<p className="text-xs text-ink-muted">
+						{prompt.matches.length === 1
+							? "1 match in QuickBooks. Confirm or create a new record."
+							: `${prompt.matches.length} possible matches in QuickBooks.`}
+					</p>
+					<ul className="flex flex-col gap-1">
+						{prompt.matches.map((m) => {
+							const selected = pick?.kind === "existing" && pick.value === m.id
+							return (
+								<li key={m.id}>
+									<button
+										type="button"
+										onClick={() => onPickExisting(m.id)}
+										className={cn(
+											"flex w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+											selected
+												? "border-brand/60 bg-brand/10 text-ink-primary"
+												: "border-border-subtle bg-surface-base hover:bg-surface-sunken/60",
+										)}
+									>
+										<span>{m.displayName}</span>
+										<span className="font-mono text-xs text-ink-muted">
+											id {m.id}
+										</span>
+									</button>
+								</li>
+							)
+						})}
+					</ul>
+				</>
+			) : (
+				<p className="text-xs text-ink-muted">
+					No matches found in QuickBooks for &ldquo;{prompt.name}&rdquo;.
+				</p>
+			)}
+			<button
+				type="button"
+				onClick={onPickCreate}
+				className={cn(
+					"flex items-center gap-2 self-start rounded-md border px-3 py-1.5 text-sm transition-colors",
+					pick?.kind === "create_new"
+						? "border-brand/60 bg-brand/10 text-ink-primary"
+						: "border-border-subtle bg-surface-raised hover:bg-surface-sunken/60",
+				)}
+			>
+				<PlusCircleIcon className="size-4" />
+				Create new &ldquo;{prompt.name}&rdquo;
+			</button>
+		</div>
 	)
 }
 
