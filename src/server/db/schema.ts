@@ -243,6 +243,12 @@ export const documentUploads = sqliteTable(
 		chosenEntityKind: text("chosen_entity_kind"),
 		/** Intuit entity id created from this upload, once filed. */
 		createdEntityId: text("created_entity_id"),
+		/** Intuit Attachable id linking the source file to the created entity. */
+		qboAttachableId: text("qbo_attachable_id"),
+		/** Structured failure detail (JSON of UploadCommitError) when status='failed' or a partial-failure warning when status='created'. */
+		lastError: text("last_error"),
+		/** When the entity was successfully POSTed to QBO. */
+		postedAt: integer("posted_at", { mode: "timestamp_ms" }),
 		status: text("status", {
 			enum: ["pending", "classified", "abandoned", "created", "failed"],
 		})

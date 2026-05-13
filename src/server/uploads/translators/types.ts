@@ -84,6 +84,57 @@ export const customerDraftSchema = z.object({
 })
 export type CustomerDraft = z.infer<typeof customerDraftSchema>
 
+const accountBasedExpenseLineSchema = z.object({
+	DetailType: z.literal("AccountBasedExpenseLineDetail"),
+	Amount: z.number(),
+	Description: z.string().optional(),
+	AccountBasedExpenseLineDetail: z
+		.object({
+			AccountRef: refSchema.optional(),
+		})
+		.partial()
+		.optional(),
+})
+
+export const billDraftSchema = z.object({
+	Line: z.array(accountBasedExpenseLineSchema).min(1),
+	VendorRef: refSchema,
+	TxnDate: z.string().optional(),
+	DueDate: z.string().optional(),
+	DocNumber: z.string().optional(),
+	PrivateNote: z.string().optional(),
+	CurrencyRef: refSchema.optional(),
+	TotalAmt: z.number().optional(),
+})
+export type BillDraft = z.infer<typeof billDraftSchema>
+
+export const vendorDraftSchema = z.object({
+	DisplayName: z.string().min(1),
+	CompanyName: z.string().optional(),
+	GivenName: z.string().optional(),
+	FamilyName: z.string().optional(),
+	PrimaryEmailAddr: z
+		.object({
+			Address: z.string(),
+		})
+		.optional(),
+	PrimaryPhone: z
+		.object({
+			FreeFormNumber: z.string(),
+		})
+		.optional(),
+	BillAddr: z
+		.object({
+			Line1: z.string().optional(),
+			City: z.string().optional(),
+			CountrySubDivisionCode: z.string().optional(),
+			PostalCode: z.string().optional(),
+		})
+		.partial()
+		.optional(),
+})
+export type VendorDraft = z.infer<typeof vendorDraftSchema>
+
 export const estimateDraftSchema = z.object({
 	Line: z.array(salesItemLineSchema).min(1),
 	CustomerRef: refSchema.optional(),
