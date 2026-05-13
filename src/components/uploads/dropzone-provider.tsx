@@ -15,14 +15,19 @@ import { trpc } from "@/trpc/react"
 import { DropZoneOverlay } from "./dropzone-overlay"
 import type {
 	ChosenOutcome,
+	CommitDraft,
 	DropZoneContextValue,
 	DropZoneState,
+	ResolutionDecision,
 } from "./dropzone-types"
 import { isSupportedClientMime, MAX_UPLOAD_BYTES } from "./supported-mime"
 import { UploadWizard } from "./upload-wizard"
 
 type ChooseMutation = ReturnType<typeof trpc.uploads.chooseEntity.useMutation>
 type CommitMutation = ReturnType<typeof trpc.uploads.commit.useMutation>
+type ResolveRefsMutation = ReturnType<
+	typeof trpc.uploads.resolveRefs.useMutation
+>
 
 const DropZoneContext = createContext<DropZoneContextValue | null>(null)
 
@@ -42,6 +47,7 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 
 	const classifyMutation = trpc.uploads.classify.useMutation()
 	const chooseMutation = trpc.uploads.chooseEntity.useMutation()
+	const resolveRefsMutation = trpc.uploads.resolveRefs.useMutation()
 	const commitMutation = trpc.uploads.commit.useMutation()
 	const abandonMutation = trpc.uploads.abandon.useMutation()
 
@@ -106,13 +112,36 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 					entityKind,
 					fileName,
 					chooseMutation,
+					resolveRefsMutation,
 					commitMutation,
 					setState,
 				})
 				return { status: "committing", uploadId, entityKind, fileName }
 			})
 		},
-		[chooseMutation, clientId, commitMutation],
+		[chooseMutation, clientId, commitMutation, resolveRefsMutation],
+	)
+
+	const submitResolutions = useCallback(
+		(decisions: ResolutionDecision[]) => {
+			if (!clientId) return
+			setState((current) => {
+				if (current.status !== "resolving_refs") return current
+				const { uploadId, entityKind, fileName, draft } = current
+				void runCommitWithResolutions({
+					uploadId,
+					clientId,
+					entityKind,
+					fileName,
+					draft,
+					decisions,
+					commitMutation,
+					setState,
+				})
+				return { status: "committing", uploadId, entityKind, fileName }
+			})
+		},
+		[clientId, commitMutation],
 	)
 
 	const dismiss = useCallback(() => {
@@ -182,11 +211,23 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 
 	return (
 		<DropZoneContext.Provider
-			value={{ state, openWithFile, choose, dismiss, disabled }}
+			value={{
+				state,
+				openWithFile,
+				choose,
+				submitResolutions,
+				dismiss,
+				disabled,
+			}}
 		>
 			{children}
 			<DropZoneOverlay visible={state.status === "dragging"} />
-			<UploadWizard state={state} onChoose={choose} onDismiss={dismiss} />
+			<UploadWizard
+				state={state}
+				onChoose={choose}
+				onSubmitResolutions={submitResolutions}
+				onDismiss={dismiss}
+			/>
 		</DropZoneContext.Provider>
 	)
 }
@@ -197,6 +238,7 @@ async function runChooseAndCommit(args: {
 	entityKind: string
 	fileName: string
 	chooseMutation: ChooseMutation
+	resolveRefsMutation: ResolveRefsMutation
 	commitMutation: CommitMutation
 	setState: (next: DropZoneState) => void
 }): Promise<void> {
@@ -206,35 +248,48 @@ async function runChooseAndCommit(args: {
 		entityKind,
 		fileName,
 		chooseMutation,
+		resolveRefsMutation,
 		commitMutation,
 		setState,
 	} = args
 	try {
 		const chooseRes = await chooseMutation.mutateAsync({ uploadId, entityKind })
 		const draft = chooseRes.draft
-		const outcome = await postIfPossible({
-			draft,
+
+		if (draft.kind === null) {
+			const outcome: ChosenOutcome =
+				draft.reason === "missing_fields"
+					? { kind: "drafted_pending_review", missing: draft.missing }
+					: { kind: "recorded_no_post", reason: "kind_not_translatable" }
+			emitChosen({ setState, uploadId, entityKind, fileName, outcome })
+			return
+		}
+
+		const commitDraft = narrowCommitInput(draft)
+		const resolveRes = await resolveRefsMutation.mutateAsync({
+			clientId,
+			commit: commitDraft,
+		})
+
+		if (resolveRes.status === "needs_prompt") {
+			setState({
+				status: "resolving_refs",
+				uploadId,
+				entityKind,
+				fileName,
+				draft: resolveRes.commit,
+				prompts: resolveRes.prompts,
+			})
+			return
+		}
+
+		const outcome = await postCommit({
 			uploadId,
 			clientId,
-			entityKind,
+			commit: resolveRes.commit,
 			commitMutation,
 		})
-		setState({ status: "chosen", uploadId, entityKind, fileName, outcome })
-		toast.success(toastTitle(outcome, entityKind), {
-			description: toastDescription(outcome, fileName),
-			action:
-				outcome.kind === "posted"
-					? {
-							label: "View in QuickBooks",
-							onClick: () =>
-								window.open(
-									outcome.entityHref,
-									"_blank",
-									"noopener,noreferrer",
-								),
-						}
-					: undefined,
-		})
+		emitChosen({ setState, uploadId, entityKind, fileName, outcome })
 	} catch (err) {
 		setState({
 			status: "error",
@@ -244,24 +299,57 @@ async function runChooseAndCommit(args: {
 	}
 }
 
-async function postIfPossible(args: {
-	draft: ChooseDraftResult
+async function runCommitWithResolutions(args: {
 	uploadId: string
 	clientId: string
 	entityKind: string
+	fileName: string
+	draft: CommitDraft
+	decisions: ResolutionDecision[]
+	commitMutation: CommitMutation
+	setState: (next: DropZoneState) => void
+}): Promise<void> {
+	const {
+		uploadId,
+		clientId,
+		entityKind,
+		fileName,
+		draft,
+		decisions,
+		commitMutation,
+		setState,
+	} = args
+	try {
+		const outcome = await postCommit({
+			uploadId,
+			clientId,
+			commit: draft,
+			resolutions: decisions,
+			commitMutation,
+		})
+		emitChosen({ setState, uploadId, entityKind, fileName, outcome })
+	} catch (err) {
+		setState({
+			status: "error",
+			message:
+				err instanceof Error ? err.message : "Failed to file upload to QBO",
+		})
+	}
+}
+
+async function postCommit(args: {
+	uploadId: string
+	clientId: string
+	commit: CommitDraft
+	resolutions?: ResolutionDecision[]
 	commitMutation: CommitMutation
 }): Promise<ChosenOutcome> {
-	const { draft, uploadId, clientId, commitMutation } = args
-	if (draft.kind === null) {
-		if (draft.reason === "missing_fields") {
-			return { kind: "drafted_pending_review", missing: draft.missing }
-		}
-		return { kind: "recorded_no_post", reason: "kind_not_translatable" }
-	}
+	const { uploadId, clientId, commit, resolutions, commitMutation } = args
 	const res = await commitMutation.mutateAsync({
 		uploadId,
 		clientId,
-		commit: narrowCommitInput(draft),
+		commit,
+		resolutions,
 	})
 	if (res.status === "created") {
 		return {
@@ -279,6 +367,28 @@ async function postIfPossible(args: {
 		entityHref: res.entityHref,
 		warning: "Entity posted, but the source file did not attach.",
 	}
+}
+
+function emitChosen(args: {
+	setState: (next: DropZoneState) => void
+	uploadId: string
+	entityKind: string
+	fileName: string
+	outcome: ChosenOutcome
+}): void {
+	const { setState, uploadId, entityKind, fileName, outcome } = args
+	setState({ status: "chosen", uploadId, entityKind, fileName, outcome })
+	toast.success(toastTitle(outcome, entityKind), {
+		description: toastDescription(outcome, fileName),
+		action:
+			outcome.kind === "posted"
+				? {
+						label: "View in QuickBooks",
+						onClick: () =>
+							window.open(outcome.entityHref, "_blank", "noopener,noreferrer"),
+					}
+				: undefined,
+	})
 }
 
 type ChooseDraftResult = Awaited<
