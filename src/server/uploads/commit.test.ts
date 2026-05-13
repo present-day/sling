@@ -1,4 +1,19 @@
 import { describe, expect, it, vi } from "vitest"
+
+// Stub the DB client before any module-under-test is imported. commit.ts pulls
+// intuit-client.ts, which transitively imports @/server/db/client and would
+// otherwise open .data/console.db on import — that path doesn't exist in CI.
+// Tests use an injected UploadCommitStore, so the real `db` is never called.
+vi.mock("@/server/db/client", () => ({
+	db: {
+		update: vi.fn().mockReturnValue({
+			set: vi.fn().mockReturnValue({
+				where: vi.fn().mockResolvedValue(undefined),
+			}),
+		}),
+	},
+}))
+
 import type { clients, documentUploads } from "@/server/db/schema"
 import { IntuitApiError, type IntuitClient } from "@/server/qbo/intuit-client"
 import {
