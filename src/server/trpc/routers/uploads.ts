@@ -17,6 +17,12 @@ import {
 	commitUpload,
 } from "@/server/uploads/commit"
 import { ENTITY_KIND_VALUES, EntityKind } from "@/server/uploads/entity-kinds"
+import {
+	applyResolutions,
+	RefRole,
+	type ResolutionDecision,
+	resolveRefs,
+} from "@/server/uploads/resolve-refs"
 import { persistUpload } from "@/server/uploads/storage"
 import {
 	type SalesScopeDraft,
@@ -107,31 +113,47 @@ function extractCandidatesArray(classificationJson: unknown): unknown[] {
 	return []
 }
 
+const commitPayloadSchema = z.discriminatedUnion("entityKind", [
+	z.object({
+		entityKind: z.literal(EntityKind.salesReceipt),
+		payload: salesReceiptDraftSchema,
+	}),
+	z.object({
+		entityKind: z.literal(EntityKind.invoice),
+		payload: invoiceDraftSchema,
+	}),
+	z.object({
+		entityKind: z.literal(EntityKind.customer),
+		payload: customerDraftSchema,
+	}),
+	z.object({
+		entityKind: z.literal(EntityKind.bill),
+		payload: billDraftSchema,
+	}),
+	z.object({
+		entityKind: z.literal(EntityKind.vendor),
+		payload: vendorDraftSchema,
+	}),
+])
+
+const resolutionDecisionSchema = z.object({
+	role: z.enum([RefRole.customer, RefRole.vendor]),
+	choice: z.discriminatedUnion("kind", [
+		z.object({ kind: z.literal("existing"), value: z.string().min(1) }),
+		z.object({ kind: z.literal("create_new"), name: z.string().min(1) }),
+	]),
+})
+
+const resolveRefsInput = z.object({
+	clientId: z.string(),
+	commit: commitPayloadSchema,
+})
+
 const commitInput = z.object({
 	uploadId: z.string(),
 	clientId: z.string(),
-	commit: z.discriminatedUnion("entityKind", [
-		z.object({
-			entityKind: z.literal(EntityKind.salesReceipt),
-			payload: salesReceiptDraftSchema,
-		}),
-		z.object({
-			entityKind: z.literal(EntityKind.invoice),
-			payload: invoiceDraftSchema,
-		}),
-		z.object({
-			entityKind: z.literal(EntityKind.customer),
-			payload: customerDraftSchema,
-		}),
-		z.object({
-			entityKind: z.literal(EntityKind.bill),
-			payload: billDraftSchema,
-		}),
-		z.object({
-			entityKind: z.literal(EntityKind.vendor),
-			payload: vendorDraftSchema,
-		}),
-	]),
+	commit: commitPayloadSchema,
+	resolutions: z.array(resolutionDecisionSchema).optional(),
 })
 
 const classifyInput = z.object({
@@ -256,6 +278,26 @@ export const uploadsRouter = router({
 			return { ok: true as const }
 		}),
 
+	resolveRefs: orgProcedure
+		.input(resolveRefsInput)
+		.mutation(async ({ ctx, input }) => {
+			const client = await ensureClientInOrg(ctx.orgId, input.clientId)
+			const intuit = makeIntuitClient(client)
+			try {
+				return await resolveRefs({
+					commit: input.commit as CommitPayload,
+					intuit,
+				})
+			} catch (e) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message:
+						e instanceof Error ? e.message : "Failed to resolve QBO refs",
+					cause: e,
+				})
+			}
+		}),
+
 	commit: orgProcedure.input(commitInput).mutation(async ({ ctx, input }) => {
 		const client = await ensureClientInOrg(ctx.orgId, input.clientId)
 		const upload = await ctx.db.query.documentUploads.findFirst({
@@ -275,12 +317,32 @@ export const uploadsRouter = router({
 			})
 		}
 
+		const intuit = makeIntuitClient(client)
+		let finalCommit = input.commit as CommitPayload
+		if (input.resolutions && input.resolutions.length > 0) {
+			try {
+				finalCommit = await applyResolutions({
+					commit: finalCommit,
+					resolutions: input.resolutions as ResolutionDecision[],
+					client,
+					intuit,
+				})
+			} catch (e) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message:
+						e instanceof Error ? e.message : "Failed to apply ref resolutions",
+					cause: e,
+				})
+			}
+		}
+
 		try {
 			return await commitUpload({
 				client,
 				upload,
-				commit: input.commit as CommitPayload,
-				intuit: makeIntuitClient(client),
+				commit: finalCommit,
+				intuit,
 			})
 		} catch (e) {
 			if (e instanceof CommitPreconditionError) {
