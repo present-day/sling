@@ -28,8 +28,20 @@ export type DropZoneState =
 			uploadId: string
 			entityKind: string
 			fileName: string
+			outcome: ChosenOutcome
 	  }
 	| { status: "error"; message: string }
+
+export type ChosenOutcome =
+	| {
+			kind: "posted"
+			createdEntityId: string
+			qboAttachableId: string | null
+			entityHref: string
+			warning: string | null
+	  }
+	| { kind: "drafted_pending_review"; missing: readonly string[] }
+	| { kind: "recorded_no_post"; reason: "kind_not_translatable" }
 
 export type DropZoneContextValue = {
 	state: DropZoneState
