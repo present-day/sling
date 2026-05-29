@@ -9,6 +9,7 @@
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"db:migrate": "tsx scripts/migrate.ts",
+		"db:dedupe-vendors": "tsx --conditions=react-server scripts/dedupe-vendors.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:push": "drizzle-kit push",
 		"test": "vitest run"
