@@ -255,6 +255,42 @@ describe("applyResolutions", () => {
 		expect(ref).toMatchObject({ value: "qb_vend_new" })
 	})
 
+	it("reuses an existing record instead of creating a duplicate on create_new", async () => {
+		const createEntity = vi.fn()
+		const intuit: IntuitClient = {
+			createEntity,
+			uploadAttachable: vi.fn(),
+			// Exact-name lookup finds the vendor already in QBO.
+			queryEntity: vi
+				.fn()
+				.mockResolvedValue(
+					vendorQuery([{ Id: "qb_vend_58", DisplayName: "Anthropic, PBC" }]),
+				),
+		}
+		const billCommit: CommitPayload = {
+			entityKind: EntityKind.bill,
+			payload: {
+				Line: [{ DetailType: "AccountBasedExpenseLineDetail", Amount: 50 }],
+				VendorRef: { name: "Anthropic, PBC" },
+			},
+		}
+		const patched = await applyResolutions({
+			commit: billCommit,
+			resolutions: [
+				{
+					role: RefRole.vendor,
+					choice: { kind: "create_new", name: "Anthropic, PBC" },
+				},
+			],
+			client: fakeClient(),
+			intuit,
+		})
+		expect(createEntity).not.toHaveBeenCalled()
+		const ref = (patched.payload as { VendorRef?: { value?: string } })
+			.VendorRef
+		expect(ref).toMatchObject({ value: "qb_vend_58" })
+	})
+
 	it("propagates a create-stub failure", async () => {
 		const intuit: IntuitClient = {
 			createEntity: vi.fn().mockRejectedValue(new Error("boom")),
