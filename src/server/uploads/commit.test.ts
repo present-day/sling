@@ -104,6 +104,7 @@ describe("commitUpload", () => {
 				.fn()
 				.mockResolvedValue({ SalesReceipt: { Id: "qb_sr_42" } }),
 			uploadAttachable: vi.fn().mockResolvedValue({ Id: "qb_att_7" }),
+			queryEntity: vi.fn(),
 		}
 		const store = fakeStore()
 
@@ -157,6 +158,7 @@ describe("commitUpload", () => {
 				.fn()
 				.mockRejectedValue(new IntuitApiError(400, fault, "salesreceipt")),
 			uploadAttachable: vi.fn(),
+			queryEntity: vi.fn(),
 		}
 		const store = fakeStore()
 
@@ -192,6 +194,7 @@ describe("commitUpload", () => {
 			uploadAttachable: vi
 				.fn()
 				.mockRejectedValue(new IntuitApiError(413, fault, "upload")),
+			queryEntity: vi.fn(),
 		}
 		const store = fakeStore()
 
@@ -227,6 +230,7 @@ describe("commitUpload", () => {
 		const intuit: IntuitClient = {
 			createEntity: vi.fn(),
 			uploadAttachable: vi.fn(),
+			queryEntity: vi.fn(),
 		}
 		await expect(
 			commitUpload({
@@ -245,6 +249,7 @@ describe("commitUpload", () => {
 		const intuit: IntuitClient = {
 			createEntity: vi.fn(),
 			uploadAttachable: vi.fn(),
+			queryEntity: vi.fn(),
 		}
 		await expect(
 			commitUpload({

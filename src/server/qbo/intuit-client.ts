@@ -23,6 +23,43 @@ export class IntuitApiError extends Error {
 	}
 }
 
+/**
+ * Human-readable one-liner from an Intuit ValidationFault/SystemFault. Pulls
+ * `Fault.Error[].Detail` (falling back to `Message`) and the QBO error code so
+ * the wizard shows e.g. "QuickBooks rejected the bill: Required parameter
+ * Line.AccountBasedExpenseLineDetail is missing (code 2020)" instead of a bare
+ * "HTTP 400".
+ */
+export function describeIntuitFault(err: IntuitApiError): string {
+	const errors = extractFaultErrors(err.intuitFault)
+	if (errors.length === 0) {
+		return `QuickBooks rejected the ${err.endpoint} (HTTP ${err.status}).`
+	}
+	const detail = errors
+		.map((e) => {
+			const head = e.Detail || e.Message || "Unknown error"
+			return e.code ? `${head} (code ${e.code})` : head
+		})
+		.join("; ")
+	return `QuickBooks rejected the ${err.endpoint}: ${detail}`
+}
+
+function extractFaultErrors(
+	fault: unknown,
+): Array<{ Message?: string; Detail?: string; code?: string }> {
+	if (fault && typeof fault === "object") {
+		const inner = (fault as { Fault?: { Error?: unknown } }).Fault?.Error
+		if (Array.isArray(inner)) {
+			return inner as Array<{
+				Message?: string
+				Detail?: string
+				code?: string
+			}>
+		}
+	}
+	return []
+}
+
 export interface IntuitClient {
 	/** POST a v3 entity create. `entityName` is the QBO API path stem (e.g. "salesreceipt"). Returns the created entity body. */
 	createEntity<T = Record<string, unknown>>(
