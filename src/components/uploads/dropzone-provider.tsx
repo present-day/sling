@@ -106,12 +106,31 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 			setState((current) => {
 				if (current.status !== "choosing") return current
 				const { uploadId, fileName } = current
-				void runChooseAndCommit({
+				void runChoose({
+					uploadId,
+					entityKind,
+					fileName,
+					chooseMutation,
+					setState,
+				})
+				return { status: "committing", uploadId, entityKind, fileName }
+			})
+		},
+		[chooseMutation, clientId],
+	)
+
+	const submitReview = useCallback(
+		(draft: CommitDraft) => {
+			if (!clientId) return
+			setState((current) => {
+				if (current.status !== "reviewing") return current
+				const { uploadId, entityKind, fileName } = current
+				void runResolveAndCommit({
 					uploadId,
 					clientId,
 					entityKind,
 					fileName,
-					chooseMutation,
+					draft,
 					resolveRefsMutation,
 					commitMutation,
 					setState,
@@ -119,7 +138,7 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 				return { status: "committing", uploadId, entityKind, fileName }
 			})
 		},
-		[chooseMutation, clientId, commitMutation, resolveRefsMutation],
+		[clientId, commitMutation, resolveRefsMutation],
 	)
 
 	const submitResolutions = useCallback(
@@ -146,7 +165,7 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 
 	const dismiss = useCallback(() => {
 		setState((current) => {
-			if (current.status === "choosing") {
+			if (current.status === "choosing" || current.status === "reviewing") {
 				void abandonMutation
 					.mutateAsync({ uploadId: current.uploadId })
 					.catch(() => {})
@@ -215,6 +234,7 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 				state,
 				openWithFile,
 				choose,
+				submitReview,
 				submitResolutions,
 				dismiss,
 				disabled,
@@ -225,6 +245,7 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 			<UploadWizard
 				state={state}
 				onChoose={choose}
+				onSubmitReview={submitReview}
 				onSubmitResolutions={submitResolutions}
 				onDismiss={dismiss}
 			/>
@@ -232,26 +253,14 @@ export function DropZoneProvider({ children }: { children: ReactNode }) {
 	)
 }
 
-async function runChooseAndCommit(args: {
+async function runChoose(args: {
 	uploadId: string
-	clientId: string
 	entityKind: string
 	fileName: string
 	chooseMutation: ChooseMutation
-	resolveRefsMutation: ResolveRefsMutation
-	commitMutation: CommitMutation
 	setState: (next: DropZoneState) => void
 }): Promise<void> {
-	const {
-		uploadId,
-		clientId,
-		entityKind,
-		fileName,
-		chooseMutation,
-		resolveRefsMutation,
-		commitMutation,
-		setState,
-	} = args
+	const { uploadId, entityKind, fileName, chooseMutation, setState } = args
 	try {
 		const chooseRes = await chooseMutation.mutateAsync({ uploadId, entityKind })
 		const draft = chooseRes.draft
@@ -266,9 +275,45 @@ async function runChooseAndCommit(args: {
 		}
 
 		const commitDraft = narrowCommitInput(draft)
+		setState({
+			status: "reviewing",
+			uploadId,
+			entityKind,
+			fileName,
+			draft: commitDraft,
+		})
+	} catch (err) {
+		setState({
+			status: "error",
+			message: err instanceof Error ? err.message : "Failed to draft entity",
+		})
+	}
+}
+
+async function runResolveAndCommit(args: {
+	uploadId: string
+	clientId: string
+	entityKind: string
+	fileName: string
+	draft: CommitDraft
+	resolveRefsMutation: ResolveRefsMutation
+	commitMutation: CommitMutation
+	setState: (next: DropZoneState) => void
+}): Promise<void> {
+	const {
+		uploadId,
+		clientId,
+		entityKind,
+		fileName,
+		draft,
+		resolveRefsMutation,
+		commitMutation,
+		setState,
+	} = args
+	try {
 		const resolveRes = await resolveRefsMutation.mutateAsync({
 			clientId,
-			commit: commitDraft,
+			commit: draft,
 		})
 
 		if (resolveRes.status === "needs_prompt") {
@@ -408,6 +453,10 @@ function narrowCommitInput(draft: CommittableDraft): CommitInput {
 			return { entityKind: "Invoice", payload: draft.payload }
 		case "Customer":
 			return { entityKind: "Customer", payload: draft.payload }
+		case "Bill":
+			return { entityKind: "Bill", payload: draft.payload }
+		case "Vendor":
+			return { entityKind: "Vendor", payload: draft.payload }
 	}
 }
 

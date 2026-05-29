@@ -152,23 +152,36 @@ describe("translateEstimate", () => {
 	})
 })
 
-describe("translateSalesScope (entry point)", () => {
-	it("dispatches by entity kind and returns null for non-sales kinds", () => {
-		const fields: ExtractedFields = { totalAmount: 50, customerName: "X" }
+describe("translateDocument (entry point)", () => {
+	it("dispatches to every translator with a `.create.ts` and returns null for kinds we don't translate yet", () => {
+		const salesFields: ExtractedFields = {
+			totalAmount: 50,
+			customerName: "X",
+		}
+		const purchaseFields: ExtractedFields = {
+			totalAmount: 50,
+			vendorName: "Acme",
+		}
 
-		expect(translateSalesScope(EntityKind.salesReceipt, fields)?.kind).toBe(
-			EntityKind.salesReceipt,
-		)
-		expect(translateSalesScope(EntityKind.invoice, fields)?.kind).toBe(
+		expect(
+			translateSalesScope(EntityKind.salesReceipt, salesFields)?.kind,
+		).toBe(EntityKind.salesReceipt)
+		expect(translateSalesScope(EntityKind.invoice, salesFields)?.kind).toBe(
 			EntityKind.invoice,
 		)
 		expect(
 			translateSalesScope(EntityKind.customer, { customerName: "X" })?.kind,
 		).toBe(EntityKind.customer)
-		expect(translateSalesScope(EntityKind.estimate, fields)?.kind).toBe(
+		expect(translateSalesScope(EntityKind.estimate, salesFields)?.kind).toBe(
 			EntityKind.estimate,
 		)
-		expect(translateSalesScope(EntityKind.bill, fields)).toBeNull()
-		expect(translateSalesScope(EntityKind.deposit, fields)).toBeNull()
+		expect(translateSalesScope(EntityKind.bill, purchaseFields)?.kind).toBe(
+			EntityKind.bill,
+		)
+		expect(
+			translateSalesScope(EntityKind.vendor, { vendorName: "Acme" })?.kind,
+		).toBe(EntityKind.vendor)
+		expect(translateSalesScope(EntityKind.deposit, salesFields)).toBeNull()
+		expect(translateSalesScope(EntityKind.journalEntry, salesFields)).toBeNull()
 	})
 })

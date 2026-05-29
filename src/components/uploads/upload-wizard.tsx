@@ -24,16 +24,19 @@ import { cn } from "@/lib/utils"
 import type {
 	Candidate,
 	ChosenOutcome,
+	CommitDraft,
 	DropZoneState,
 	ResolutionDecision,
 	ResolutionPrompt,
 } from "./dropzone-types"
+import { ReviewFields } from "./review-fields"
 
 type WizardOpen = Exclude<DropZoneState["status"], "idle" | "dragging">
 
 const OPEN_STATUSES: readonly WizardOpen[] = [
 	"classifying",
 	"choosing",
+	"reviewing",
 	"committing",
 	"resolving_refs",
 	"chosen",
@@ -47,11 +50,13 @@ function isOpenStatus(s: DropZoneState["status"]): s is WizardOpen {
 export function UploadWizard({
 	state,
 	onChoose,
+	onSubmitReview,
 	onSubmitResolutions,
 	onDismiss,
 }: {
 	state: DropZoneState
 	onChoose: (entityKind: string) => void
+	onSubmitReview: (draft: CommitDraft) => void
 	onSubmitResolutions: (decisions: ResolutionDecision[]) => void
 	onDismiss: () => void
 }) {
@@ -72,6 +77,7 @@ export function UploadWizard({
 					<WizardBody
 						state={state}
 						onChoose={onChoose}
+						onSubmitReview={onSubmitReview}
 						onSubmitResolutions={onSubmitResolutions}
 					/>
 				</div>
@@ -95,6 +101,8 @@ function titleFor(state: DropZoneState): string {
 			return "Classifying…"
 		case "choosing":
 			return "Confirm what to file"
+		case "reviewing":
+			return "Review the mapping"
 		case "committing":
 			return "Filing…"
 		case "resolving_refs":
@@ -114,6 +122,8 @@ function descriptionFor(state: DropZoneState): string {
 			return state.fileName
 		case "choosing":
 			return `${state.fileName} · pick the QuickBooks entity to file as`
+		case "reviewing":
+			return `${state.fileName} · ${state.entityKind} · edit anything that looks off`
 		case "committing":
 			return `${state.fileName} · ${state.entityKind}`
 		case "resolving_refs":
@@ -130,10 +140,12 @@ function descriptionFor(state: DropZoneState): string {
 function WizardBody({
 	state,
 	onChoose,
+	onSubmitReview,
 	onSubmitResolutions,
 }: {
 	state: DropZoneState
 	onChoose: (entityKind: string) => void
+	onSubmitReview: (draft: CommitDraft) => void
 	onSubmitResolutions: (decisions: ResolutionDecision[]) => void
 }) {
 	if (state.status === "classifying") {
@@ -166,6 +178,15 @@ function WizardBody({
 					</p>
 				) : null}
 			</div>
+		)
+	}
+	if (state.status === "reviewing") {
+		return (
+			<ReviewFields
+				entityKind={state.entityKind}
+				draft={state.draft}
+				onSubmit={onSubmitReview}
+			/>
 		)
 	}
 	if (state.status === "committing") {
