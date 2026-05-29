@@ -1,7 +1,7 @@
 import "server-only"
 import type { clients } from "@/server/db/schema"
 import { createCustomer } from "@/server/qbo/customer.create"
-import type { IntuitClient } from "@/server/qbo/intuit-client"
+import { IntuitApiError, type IntuitClient } from "@/server/qbo/intuit-client"
 import { createVendor } from "@/server/qbo/vendor.create"
 import type { CommitPayload } from "@/server/uploads/commit"
 
@@ -128,15 +128,16 @@ function readRef(
 	return undefined
 }
 
-async function queryMatches(
+function entityFor(role: RefRole): "Customer" | "Vendor" {
+	return role === RefRole.customer ? "Customer" : "Vendor"
+}
+
+async function runNameQuery(
 	intuit: IntuitClient,
-	role: RefRole,
-	name: string,
+	entity: "Customer" | "Vendor",
+	where: string,
 ): Promise<ResolutionMatch[]> {
-	const entity = role === RefRole.customer ? "Customer" : "Vendor"
-	// QBO query language uses single-quoted literals; escape embedded quotes.
-	const escaped = name.replace(/'/g, "\\'")
-	const query = `SELECT Id, DisplayName FROM ${entity} WHERE DisplayName LIKE '%${escaped}%' MAXRESULTS ${MAX_MATCHES}`
+	const query = `SELECT Id, DisplayName FROM ${entity} WHERE ${where} MAXRESULTS ${MAX_MATCHES}`
 	const res = await intuit.queryEntity<{
 		QueryResponse?: {
 			Customer?: Array<{ Id: string; DisplayName: string }>
@@ -145,23 +146,82 @@ async function queryMatches(
 	}>(query)
 	const rows =
 		(entity === "Customer"
-			? res.QueryResponse?.Customer
-			: res.QueryResponse?.Vendor) ?? []
+			? res?.QueryResponse?.Customer
+			: res?.QueryResponse?.Vendor) ?? []
 	return rows.map((r) => ({ id: r.Id, displayName: r.DisplayName }))
 }
 
+async function queryMatches(
+	intuit: IntuitClient,
+	role: RefRole,
+	name: string,
+): Promise<ResolutionMatch[]> {
+	// QBO query language uses single-quoted literals; escape embedded quotes.
+	const escaped = name.replace(/'/g, "\\'")
+	return runNameQuery(
+		intuit,
+		entityFor(role),
+		`DisplayName LIKE '%${escaped}%'`,
+	)
+}
+
+async function findExactMatch(
+	intuit: IntuitClient,
+	role: RefRole,
+	displayName: string,
+): Promise<string | null> {
+	const escaped = displayName.replace(/'/g, "\\'")
+	const rows = await runNameQuery(
+		intuit,
+		entityFor(role),
+		`DisplayName = '${escaped}'`,
+	)
+	return rows[0]?.id ?? null
+}
+
+/**
+ * Resolve a name to a name-list record id, creating it only if it doesn't
+ * already exist. Idempotent on purpose: vendor/customer creation happens
+ * before the parent transaction posts, so a failed post (or a stray "create
+ * new" click when a match exists) must not strand a fresh duplicate. We look
+ * up an exact DisplayName match first, and if QBO still reports a duplicate
+ * name on insert (race, or our LIKE search missed it), we re-query and reuse.
+ */
 async function createStub(
 	client: ClientRow,
 	intuit: IntuitClient,
 	role: RefRole,
 	displayName: string,
 ): Promise<string> {
-	if (role === RefRole.customer) {
-		const r = await createCustomer(client, { DisplayName: displayName }, intuit)
+	const existing = await findExactMatch(intuit, role, displayName)
+	if (existing) return existing
+
+	try {
+		if (role === RefRole.customer) {
+			const r = await createCustomer(
+				client,
+				{ DisplayName: displayName },
+				intuit,
+			)
+			return r.id
+		}
+		const r = await createVendor(client, { DisplayName: displayName }, intuit)
 		return r.id
+	} catch (e) {
+		if (e instanceof IntuitApiError && isDuplicateNameFault(e)) {
+			const found = await findExactMatch(intuit, role, displayName)
+			if (found) return found
+		}
+		throw e
 	}
-	const r = await createVendor(client, { DisplayName: displayName }, intuit)
-	return r.id
+}
+
+/** QBO error code 6240 = "Duplicate Name Exists Error". */
+function isDuplicateNameFault(err: IntuitApiError): boolean {
+	const inner = (err.intuitFault as { Fault?: { Error?: unknown } } | null)
+		?.Fault?.Error
+	if (!Array.isArray(inner)) return false
+	return inner.some((e) => (e as { code?: string }).code === "6240")
 }
 
 function patchRefValue(

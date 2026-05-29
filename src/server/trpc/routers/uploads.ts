@@ -3,7 +3,11 @@ import { TRPCError } from "@trpc/server"
 import { and, desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { documentUploads } from "@/server/db/schema"
-import { makeIntuitClient } from "@/server/qbo/intuit-client"
+import {
+	describeIntuitFault,
+	IntuitApiError,
+	makeIntuitClient,
+} from "@/server/qbo/intuit-client"
 import { ensureClientInOrg } from "@/server/trpc/ensure-client-in-org"
 import {
 	classifyDocument,
@@ -25,8 +29,8 @@ import {
 } from "@/server/uploads/resolve-refs"
 import { persistUpload } from "@/server/uploads/storage"
 import {
-	type SalesScopeDraft,
-	translateSalesScope,
+	type DocumentDraft,
+	translateDocument,
 } from "@/server/uploads/translators"
 import {
 	billDraftSchema,
@@ -43,13 +47,13 @@ import { orgProcedure, router } from "../init"
  * stored classification. Returned by `chooseEntity` so the client can chain a
  * `commit` call without having to host the (server-only) translators itself.
  *
- * The committable subset is narrower than the Sales-scope translator surface:
- * #56 ships SalesReceipt/Invoice/Customer/Bill/Vendor; Estimate has a draft
- * shape but no `.create.ts` yet, so it surfaces as `kind_not_translatable`.
+ * Committable kinds (those with a matching `.create.ts` under `server/qbo/`):
+ * SalesReceipt, Invoice, Customer, Bill, Vendor. Estimate has a draft shape
+ * but no creator yet, so it surfaces as `kind_not_translatable`.
  */
 export type CommittableDraft = Extract<
-	SalesScopeDraft,
-	{ kind: "SalesReceipt" | "Invoice" | "Customer" }
+	DocumentDraft,
+	{ kind: "SalesReceipt" | "Invoice" | "Customer" | "Bill" | "Vendor" }
 >
 
 export type DraftForChoiceResult =
@@ -79,7 +83,7 @@ function draftForChoice(
 			?.extractedFields ?? {}
 
 	try {
-		const draft = translateSalesScope(entityKind, fields)
+		const draft = translateDocument(entityKind, fields)
 		if (!draft) return { kind: null, reason: "kind_not_translatable" }
 		// Switch on `draft.kind` to preserve the discriminated-union narrowing:
 		// reconstructing the object as `{ kind: draft.kind, payload: draft.payload }`
@@ -90,6 +94,10 @@ function draftForChoice(
 			case EntityKind.invoice:
 				return { kind: draft.kind, payload: draft.payload }
 			case EntityKind.customer:
+				return { kind: draft.kind, payload: draft.payload }
+			case EntityKind.bill:
+				return { kind: draft.kind, payload: draft.payload }
+			case EntityKind.vendor:
 				return { kind: draft.kind, payload: draft.payload }
 			default:
 				return { kind: null, reason: "kind_not_translatable" }
@@ -347,6 +355,15 @@ export const uploadsRouter = router({
 		} catch (e) {
 			if (e instanceof CommitPreconditionError) {
 				throw new TRPCError({ code: "BAD_REQUEST", message: e.message })
+			}
+			// QBO rejected the write (validation fault). Surface the actual
+			// Intuit Error[].Detail so the wizard shows why, not just HTTP 400.
+			if (e instanceof IntuitApiError) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: describeIntuitFault(e),
+					cause: e,
+				})
 			}
 			throw new TRPCError({
 				code: "INTERNAL_SERVER_ERROR",

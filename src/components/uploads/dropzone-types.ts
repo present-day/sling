@@ -28,6 +28,13 @@ export type DropZoneState =
 			fileName: string
 	  }
 	| {
+			status: "reviewing"
+			uploadId: string
+			entityKind: string
+			fileName: string
+			draft: CommitDraft
+	  }
+	| {
 			status: "committing"
 			uploadId: string
 			entityKind: string
@@ -65,6 +72,7 @@ export type DropZoneContextValue = {
 	state: DropZoneState
 	openWithFile: (file: File) => void
 	choose: (entityKind: string) => void
+	submitReview: (draft: CommitDraft) => void
 	submitResolutions: (decisions: ResolutionDecision[]) => void
 	dismiss: () => void
 	disabled: boolean

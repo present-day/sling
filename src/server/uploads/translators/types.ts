@@ -1,4 +1,6 @@
-import "server-only"
+// No `server-only` directive: these Zod schemas + Error class are shared
+// validation primitives used by both the server translators and the client
+// review form. Keep them client-safe.
 import { z } from "zod"
 
 /**
