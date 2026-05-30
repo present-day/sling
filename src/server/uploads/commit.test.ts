@@ -122,7 +122,7 @@ describe("commitUpload", () => {
 			createdEntityId: "qb_sr_42",
 			qboAttachableId: "qb_att_7",
 			entityHref:
-				"https://app.sandbox.qbo.intuit.com/app/salesreceipt?txnId=qb_sr_42",
+				"https://app.sandbox.qbo.intuit.com/app/salesreceipt?txnid=qb_sr_42",
 		})
 		expect(intuit.createEntity).toHaveBeenCalledWith(
 			"salesreceipt",
@@ -211,7 +211,7 @@ describe("commitUpload", () => {
 			status: "created_no_attachment",
 			createdEntityId: "qb_sr_99",
 			entityHref:
-				"https://app.sandbox.qbo.intuit.com/app/salesreceipt?txnId=qb_sr_99",
+				"https://app.sandbox.qbo.intuit.com/app/salesreceipt?txnid=qb_sr_99",
 			warning: { stage: "attachable", httpStatus: 413 },
 		})
 		expect(store.failed).toHaveLength(0)
