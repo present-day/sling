@@ -50,11 +50,11 @@ const QBO_HOST: Record<ClientRow["environment"], string> = {
 
 const ENTITY_HREF_PATH: Record<
 	CommitPayload["entityKind"],
-	{ path: string; idKey: "txnId" | "nameId" }
+	{ path: string; idKey: "txnid" | "nameId" }
 > = {
-	[EntityKind.salesReceipt]: { path: "salesreceipt", idKey: "txnId" },
-	[EntityKind.invoice]: { path: "invoice", idKey: "txnId" },
-	[EntityKind.bill]: { path: "bill", idKey: "txnId" },
+	[EntityKind.salesReceipt]: { path: "salesreceipt", idKey: "txnid" },
+	[EntityKind.invoice]: { path: "invoice", idKey: "txnid" },
+	[EntityKind.bill]: { path: "bill", idKey: "txnid" },
 	[EntityKind.customer]: { path: "customerdetail", idKey: "nameId" },
 	[EntityKind.vendor]: { path: "vendordetail", idKey: "nameId" },
 }
@@ -62,7 +62,8 @@ const ENTITY_HREF_PATH: Record<
 /**
  * Deep-link into the QBO web UI for a freshly-created entity. Sandbox vs
  * production host is keyed off the client row; entity URL stem and id
- * parameter name vary per kind (txnId for transactions, nameId for name-list
+ * parameter name vary per kind (lowercase txnid for transactions — QBO's
+ * router is case-sensitive and ignores txnId — nameId for name-list
  * entities).
  */
 export function buildEntityHref(

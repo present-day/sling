@@ -275,9 +275,12 @@ const PATH_BY_KIND: Record<
 	string,
 	{ path: string; idKey: string } | undefined
 > = {
-	Bill: { path: "bill", idKey: "txnId" },
-	Invoice: { path: "invoice", idKey: "txnId" },
-	SalesReceipt: { path: "salesreceipt", idKey: "txnId" },
+	// QBO's router is case-sensitive: transactions use lowercase `txnid`
+	// (camelCase txnId is ignored and opens a blank new form). Keep in sync
+	// with ENTITY_HREF_PATH in server/uploads/commit.ts.
+	Bill: { path: "bill", idKey: "txnid" },
+	Invoice: { path: "invoice", idKey: "txnid" },
+	SalesReceipt: { path: "salesreceipt", idKey: "txnid" },
 	Customer: { path: "customerdetail", idKey: "nameId" },
 	Vendor: { path: "vendordetail", idKey: "nameId" },
 }

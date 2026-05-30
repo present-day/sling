@@ -169,7 +169,7 @@ The wizard switches to **"Filed"**:
 - Entity id (the newly-created Bill's QBO id).
 - Attachable id (the source PDF, attached to the Bill).
 - "View in QuickBooks" — opens the sandbox URL
-  `https://app.sandbox.qbo.intuit.com/app/bill?txnId=<id>` in a new tab.
+  `https://app.sandbox.qbo.intuit.com/app/bill?txnid=<id>` in a new tab.
 
 Open the QBO link. Verify in the sandbox UI that the bill shows the **edited**
 amount/memo from step 5 — that's the proof the review step modified the
