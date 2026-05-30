@@ -3,7 +3,7 @@
 import { ExternalLinkIcon, FileTextIcon, UploadIcon } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -55,11 +55,15 @@ export default function DevSmokePage() {
 		e.target.value = ""
 	}
 
-	// Refetch the writes log whenever the wizard reports a `chosen` state,
-	// so the most recent posting bubbles to the top without a manual reload.
-	if (state.status === "chosen" && !uploads.isRefetching) {
-		void uploads.refetch()
-	}
+	// Refetch the writes log once when a posting completes, so the newest row
+	// bubbles to the top without a manual reload. Keyed on the chosen upload's
+	// id — NOT run during render — so it fires once per posting instead of
+	// looping while the "Filed" panel stays open.
+	const refetchUploads = uploads.refetch
+	const chosenUploadId = state.status === "chosen" ? state.uploadId : null
+	useEffect(() => {
+		if (chosenUploadId) void refetchUploads()
+	}, [chosenUploadId, refetchUploads])
 
 	return (
 		<div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
